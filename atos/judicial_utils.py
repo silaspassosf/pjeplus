@@ -96,7 +96,208 @@ def _clicar_polo_ativo(driver: Any, tentativas: int = 2) -> bool:
     return False
 
 
-def preencher_prazos_destinatarios(driver: Any, prazo: Any, apenas_primeiro: bool = False, perito: bool = False, perito_nomes: Any = None) -> bool:
+def _selecionar_destinatarios_alvo(driver: Any, destinatarios_alvo: Any) -> bool:
+    """Seleciona na tabela de intimações apenas os destinatários-alvo (ex.: parte com Domicílio Eletrônico)."""
+    alvos = []
+    if isinstance(destinatarios_alvo, str):
+        destinatarios_alvo = [destinatarios_alvo]
+    for item in (destinatarios_alvo or []):
+        nome = ''
+        if isinstance(item, dict):
+            nome = (item.get('parte') or item.get('nome') or '').strip()
+        else:
+            nome = str(item or '').strip()
+        if nome and nome not in alvos:
+            alvos.append(nome)
+
+    if not alvos:
+        logger.warning('[PRAZOS][ALVO] Nenhum destinatário-alvo informado para seleção')
+        return False
+
+    js_selecionar = """
+    var alvosBrutos = arguments[0] || [];
+    function norm(s) {
+        return String(s || '')
+            .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+            .toUpperCase()
+            .replace(/[^A-Z0-9\\s]/g, ' ')
+            .replace(/\\s+/g, ' ')
+            .trim();
+    }
+    var alvos = alvosBrutos.map(norm).filter(Boolean);
+    var linhas = Array.prototype.slice.call(
+        document.querySelectorAll('table.t-class tbody tr.ng-star-inserted')
+    );
+    var selecionadas = [];
+    var desabilitadas = [];
+    var encontradas = [];
+    var todasLinhas = [];
+    linhas.forEach(function (tr) {
+        var txtBruto = (tr.innerText || tr.textContent || '').replace(/\\s+/g, ' ').trim();
+        var txt = norm(txtBruto);
+        todasLinhas.push(txtBruto.slice(0, 120));
+        var cb = tr.querySelector('input[aria-label="Intimar parte"]') || tr.querySelector('input[type="checkbox"]');
+        var bateAlvo = alvos.some(function (a) {
+            return a && txt.indexOf(a) !== -1;
+        });
+        if (bateAlvo) {
+            encontradas.push(txtBruto.slice(0, 120));
+            if (cb) {
+                var desab = !!cb.disabled || cb.getAttribute('aria-disabled') === 'true';
+                if (desab) {
+                    desabilitadas.push(txtBruto.slice(0, 120));
+                } else {
+                    if (!cb.checked) {
+                        cb.click();
+                    }
+                    if (cb.checked) {
+                        selecionadas.push(txtBruto.slice(0, 120));
+                    }
+                }
+            }
+        } else if (cb && cb.checked && !cb.disabled) {
+            cb.click();
+        }
+    });
+    return {
+        selecionadas: selecionadas,
+        desabilitadas: desabilitadas,
+        encontradas: encontradas,
+        totalLinhas: linhas.length,
+        todasLinhas: todasLinhas
+    };
+    """
+    res = _executar_js(driver, js_selecionar, alvos)
+    if not isinstance(res, dict):
+        logger.warning('[PRAZOS][ALVO] Retorno inesperado ao selecionar alvos: %r', res)
+        return False
+
+    selecionadas = res.get('selecionadas') or []
+    desabilitadas = res.get('desabilitadas') or []
+    encontradas = res.get('encontradas') or []
+    logger.info(
+        '[PRAZOS][ALVO] alvos=%s | encontradas=%d | selecionadas=%d | desabilitadas=%d',
+        alvos, len(encontradas), len(selecionadas), len(desabilitadas)
+    )
+    if not selecionadas:
+        logger.warning(
+            '[PRAZOS][ALVO] Nenhuma linha selecionada. Linhas na tabela: %s',
+            res.get('todasLinhas') or []
+        )
+        return False
+    espera.assentar(driver, 0.3)
+    return True
+
+
+def aguardar_pos_clique_assinar(
+    driver: Any,
+    contexto: str = 'ATO',
+    seletor_assinar: str = 'button#assinar',
+    teto_sem_dialog: int = 25,
+    teto_com_dialog: int = 180,
+) -> bool:
+    """Aguarda confirmação da assinatura (snackbar, fechamento de diálogo móvel/PJeOffice ou saída da minuta)."""
+    _js_check = """
+    var selAssinar = arguments[0];
+    var snacks = Array.prototype.slice.call(
+        document.querySelectorAll('simple-snack-bar, snack-bar-container')
+    );
+    var snackTxt = '';
+    for (var i = 0; i < snacks.length; i++) {
+        var t = (snacks[i].innerText || snacks[i].textContent || '').trim();
+        if (t) { snackTxt = t; break; }
+    }
+    var low = snackTxt.toLowerCase();
+    var dialog = document.querySelector('mat-dialog-container');
+    var otp = document.querySelector('input.codigo-otp');
+    var spinner = document.querySelector('mat-progress-spinner, .mat-progress-spinner, pje-loader');
+    var btn = selAssinar ? document.querySelector(selAssinar) : null;
+    var url = String(window.location.href || '');
+    return {
+        snack: snackTxt,
+        erro: low.includes('erro') || low.includes('falha') || low.includes('cancelad'),
+        sucesso: low.includes('assinad') || low.includes('juntad') || low.includes('sucesso'),
+        dialog: !!dialog,
+        otp: !!otp,
+        spinner: !!spinner,
+        btnPresente: !!btn,
+        btnDesabilitado: !!(btn && (btn.disabled || btn.getAttribute('aria-disabled') === 'true')),
+        url: url
+    };
+    """
+
+    url_inicial = ''
+    try:
+        url_inicial = str(getattr(driver, 'current_url', '') or '')
+    except Exception:
+        url_inicial = ''
+
+    teve_dialog = False
+    try:
+        teve_dialog = bool(espera.ate_aparecer(driver, 'mat-dialog-container, input.codigo-otp', teto=3))
+    except Exception:
+        teve_dialog = False
+
+    if teve_dialog:
+        logger.info('[%s][ASSINAR] Diálogo de assinatura/validação detectado — aguardando conclusão...', contexto)
+        limite_dialog = time.monotonic() + float(teto_com_dialog)
+        dialog_fechou = False
+        while time.monotonic() < limite_dialog:
+            st = _executar_js(driver, _js_check, seletor_assinar) or {}
+            if not st.get('dialog'):
+                dialog_fechou = True
+                break
+            espera.pausa(driver, 0.5, motivo=f'[{contexto}] aguardando dialogo de assinatura fechar')
+        if not dialog_fechou:
+            logger.error('[%s][ASSINAR][ERRO] Timeout de %ss aguardando diálogo de assinatura fechar',
+                         contexto, teto_com_dialog)
+            return False
+        try:
+            from Fix.sessao import salvar_cookies_sessao
+            salvar_cookies_sessao(driver, info_extra='apos_assinatura')
+        except Exception:
+            pass
+
+    limite = time.monotonic() + float(teto_sem_dialog)
+    while time.monotonic() < limite:
+        st = _executar_js(driver, _js_check, seletor_assinar) or {}
+        if st.get('erro'):
+            logger.error('[%s][ASSINAR][ERRO] Assinatura rejeitada: "%s"', contexto, st.get('snack'))
+            return False
+        if st.get('sucesso') and not st.get('spinner') and not st.get('dialog'):
+            logger.info('[%s][ASSINAR] Assinatura confirmada via snackbar: "%s"', contexto, st.get('snack'))
+            try:
+                from Fix.sessao import salvar_cookies_sessao
+                salvar_cookies_sessao(driver, info_extra='apos_assinatura')
+            except Exception:
+                pass
+            return True
+        url_atual = st.get('url') or ''
+        if url_inicial and url_atual and url_atual != url_inicial and '/minutar' not in url_atual and '/anexar' not in url_atual and not st.get('spinner') and not st.get('dialog'):
+            logger.info('[%s][ASSINAR] Assinatura/envio confirmado via transição de rota (%s)', contexto, url_atual)
+            try:
+                from Fix.sessao import salvar_cookies_sessao
+                salvar_cookies_sessao(driver, info_extra='apos_assinatura')
+            except Exception:
+                pass
+            return True
+        if not st.get('btnPresente') and not st.get('dialog') and not st.get('spinner'):
+            logger.info('[%s][ASSINAR] Botão de assinatura ausente pós-clique e sem spinner (tela atualizada)', contexto)
+            try:
+                from Fix.sessao import salvar_cookies_sessao
+                salvar_cookies_sessao(driver, info_extra='apos_assinatura')
+            except Exception:
+                pass
+            return True
+        espera.pausa(driver, 0.5, motivo=f'[{contexto}] aguardando confirmação de assinatura')
+
+    logger.warning('[%s][ASSINAR][WARN] Confirmação explícita de assinatura não detectada em %ss — verificando estado final',
+                   contexto, teto_sem_dialog)
+    st_final = _executar_js(driver, _js_check, seletor_assinar) or {}
+    return not st_final.get('erro') and not st_final.get('dialog')
+
+
+def preencher_prazos_destinatarios(driver: Any, prazo: Any, apenas_primeiro: bool = False, perito: bool = False, perito_nomes: Any = None, destinatario: Any = None, destinatarios_alvo: Any = None) -> bool:
     """Preenche prazos para destinatários em uma tabela específica."""
     try:
         logger.info(f'[PRAZOS] Preenchendo prazos: {prazo}')
@@ -108,7 +309,11 @@ def preencher_prazos_destinatarios(driver: Any, prazo: Any, apenas_primeiro: boo
             logger.warning('[PRAZOS] Tabela de destinatários não carregou no tempo esperado')
             return False
 
-        if apenas_primeiro:
+        destinatario_norm = str(destinatario or '').strip().lower()
+        if destinatario_norm == 'alvo':
+            if not _selecionar_destinatarios_alvo(driver, destinatarios_alvo):
+                return False
+        elif apenas_primeiro:
             if not _clicar_polo_ativo(driver):
                 logger.warning('[PRAZOS] Clique em #selecionar-polo-ativo não marcou nenhuma linha '
                                '— seguindo sem seleção de polo')

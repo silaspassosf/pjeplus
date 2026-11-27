@@ -35,6 +35,7 @@ from .judicial_navegacao import (
     navegar_para_conclusao,
     escolher_tipo_conclusao,
     aguardar_transicao_minutar,
+    aguardar_minuta_pronta,
     preparar_campo_minutar,
     verificar_estado_atual,
     focar_campo_minutar_se_necessario,
@@ -45,13 +46,17 @@ from .judicial_utils import (
     verificar_bloqueio_recente
 )
 from Fix import espera
+from .judicial_api import cls_api_habilitada, navegar_cls_api
 
 
 @medir_tempo('fluxo_cls')
 def fluxo_cls(
     driver: Any,
     conclusao_tipo: str,
-    forcar_iniciar_execucao: bool = False
+    forcar_iniciar_execucao: bool = False,
+    via_api: Optional[bool] = None,
+    conclusao_api: Optional[str] = None,
+    forcar_minutar_elaborar: bool = False,
 ) -> bool:
     """Fluxo principal para CLS (Conclusão ao Magistrado → Minutar)."""
     log_start('CLS')
@@ -61,6 +66,28 @@ def fluxo_cls(
     try:
         logger.info('FLUXO CLS - INICIANDO')
         logger.info('=' * 60)
+
+        # Caminho primário: navegação 100% API (sem cliques); falha → fluxo DOM abaixo.
+        if cls_api_habilitada(via_api):
+            try:
+                estado_api = navegar_cls_api(
+                    driver,
+                    conclusao_tipo,
+                    conclusao_api=conclusao_api,
+                    abrir_se_elaborar=forcar_minutar_elaborar,
+                )
+            except Exception as e:
+                logger.warning(f'[CLS-API] Exceção — seguindo pelo DOM: {e}')
+                estado_api = None
+            timing_api = time.time() - timing_inicio
+            if estado_api in ('assinar', 'elaborar'):
+                logger.info(f'[CLS][TIMING][SUCESSO] {timing_api:.3f}s (API: tarefa já em {estado_api})')
+                return True, True
+            if estado_api == 'minutar':
+                if aguardar_minuta_pronta(driver, timeout=15.0):
+                    logger.info(f'[CLS][TIMING][SUCESSO] {time.time() - timing_inicio:.3f}s (API → minutar)')
+                    return True, False
+                logger.warning('[CLS-API] Minuta não ficou pronta após navegação API — seguindo pelo DOM')
 
         timing_check_estado = time.time()
         estado_atual = verificar_estado_atual(driver)
@@ -85,19 +112,28 @@ def fluxo_cls(
             ja_em_conclusao = False
 
         if not ja_em_conclusao:
-            nome_cls = (getattr(driver, 'pje_tarefa_atual', '') or '').strip()
-            if not nome_cls:
-                try:
-                    h1 = espera.elementos(
-                        driver,
-                        "pje-cabecalho-tarefa h1.titulo-tarefa, pje-cabecalho-tarefa h1",
-                        teto=2,
-                    )
-                    if h1:
-                        nome_cls = (getattr(h1[0], 'text', '') or '').strip()
-                except Exception:
-                    pass
-            if getattr(driver, 'pje_tarefa_pronta', None) == 'elaborar' or 'elaborar' in nome_cls.lower():
+            _url_cls_low = (getattr(driver, 'current_url', '') or '').lower()
+            if 'acesso-negado' in _url_cls_low or '/login' in _url_cls_low:
+                logger.error('[CLS] Sessão expirada (%s) — abortando CLS sem marcar como concluído', _url_cls_low)
+                return False, False
+            nome_cls = ''
+            try:
+                h1 = espera.elementos(
+                    driver,
+                    "pje-cabecalho-tarefa h1.titulo-tarefa, pje-cabecalho-tarefa h1",
+                    teto=2,
+                )
+                if h1:
+                    nome_cls = (getattr(h1[0], 'text', '') or '').strip()
+            except Exception:
+                pass
+            if not nome_cls and '/processo/' in _url_cls_low:
+                # Só aceita cache no driver se pertencer ao mesmo idProcesso da URL atual.
+                cache_t = getattr(driver, '_pje_cache_tarefa_api', None)
+                if cache_t and f"/processo/{cache_t[0]}" in _url_cls_low:
+                    nome_cls = (getattr(driver, 'pje_tarefa_atual', '') or '').strip()
+            pronta_cache = getattr(driver, 'pje_tarefa_pronta', None) if '/processo/' in _url_cls_low else None
+            if pronta_cache == 'elaborar' or 'elaborar' in nome_cls.lower():
                 logger.info('[CLS] Tarefa de elaboração — processo encerrado, seguindo para o próximo')
                 timing_total = time.time() - timing_inicio
                 logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (tarefa de elaboração)')
@@ -529,10 +565,14 @@ def ato_judicial(
     coleta_conteudo: Optional[Callable] = None,
     inserir_conteudo: Optional[Callable] = None,
     intimar: Optional[bool] = None,
+    destinatario: Optional[str] = None,
+    destinatarios_alvo: Optional[Any] = None,
     **kwargs: Any
 ) -> Tuple[bool, bool]:
     """Fluxo generalizado para qualquer ato judicial, seguindo a ordem:"""
     import time
+    if destinatario is None and 'destinatário' in kwargs:
+        destinatario = kwargs.pop('destinatário')
     atribuir_visibilidade_autor = False
     try:
         atribuir_visibilidade_autor = bool(kwargs.pop('atribuir_visibilidade_autor', False))
@@ -549,8 +589,9 @@ def ato_judicial(
             _url_ato = (getattr(driver, 'current_url', '') or '')
         except Exception:
             _url_ato = ''
-        if not ('pje' in _url_ato and 'jus.br' in _url_ato):
-            logger.error('[ATO][ERRO] Página atual não é do PJe (%r) — ato não executado',
+        _url_ato_low = _url_ato.lower()
+        if not ('pje' in _url_ato_low and 'jus.br' in _url_ato_low) or 'acesso-negado' in _url_ato_low or '/login' in _url_ato_low:
+            logger.error('[ATO][ERRO] Página atual inválida ou sessão expirada (%r) — ato não executado',
                          _url_ato or 'sem URL')
             return False, False
 
@@ -572,7 +613,14 @@ def ato_judicial(
                 logger.error('[ATO] conclusao_tipo é obrigatório quando modelo_nome é fornecido!')
                 return False, False
 
-            res_cls = fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=True)
+            res_cls = fluxo_cls(
+                driver,
+                conclusao_tipo,
+                forcar_iniciar_execucao=True,
+                via_api=kwargs.pop('via_api', None),
+                conclusao_api=kwargs.pop('conclusao_api', None),
+                forcar_minutar_elaborar=bool(kwargs.pop('forcar_minutar_elaborar', False)),
+            )
             if isinstance(res_cls, tuple):
                 sucesso_cls, ja_estava_final = res_cls
             else:
@@ -612,7 +660,6 @@ def ato_judicial(
             if not inserir_modelo_no_editor(driver, modelo_nome, log=logger.info):
                 logger.error('[ATO][MODELO] Modelo não confirmado no editor-alvo — abortando antes do Salvar')
                 return False, False
-            espera.assentar(driver, 1.0, motivo='paciência pós-inserção do modelo')
 
         if inserir_conteudo:
             logger.info('[ATO][INSERIR] Executando inserção de conteúdo...')
@@ -622,10 +669,6 @@ def ato_judicial(
             except Exception as e:
                 logger.error(f'[ATO][INSERIR]  Erro ao inserir conteúdo: {e}')
                 return False, False
-
-        if modelo_nome and not editor_tem_conteudo(driver):
-            logger.error('[ATO][SALVAR] Editor-alvo vazio antes de salvar modelo "%s" — abortando para não salvar minuta em branco', modelo_nome)
-            return False, False
 
         logger.info('[ATO][SALVAR] Salvando minuta após inserção...')
         try:
@@ -666,44 +709,53 @@ def ato_judicial(
                         || b.offsetWidth === 0 || b.offsetHeight === 0;
                 });
             }"""
-            salvou = bool(espera.ate_js(driver, f"({js_snack_salvo})() || ({js_salvar_desabilitado})()", teto=6))
+            salvou = bool(espera.ate_js(driver, f"({js_snack_salvo})() || ({js_salvar_desabilitado})()", teto=1.5))
 
-            if not salvou:
-                logger.warning('[ATO][SALVAR] 1º clique em Salvar sem confirmação de persistência — retentando Salvar')
-                btn_salvar_retry = wait_for_clickable(driver, seletor_btn_salvar, timeout=3)
-                if btn_salvar_retry:
-                    safe_click(driver, btn_salvar_retry)
-                    espera.ate_sumir(driver, 'mat-progress-bar, mat-progress-spinner, .mat-progress-spinner, .mat-progress-bar', teto=15)
-                    salvou = bool(espera.ate_js(driver, f"({js_snack_salvo})() || ({js_salvar_desabilitado})()", teto=6))
-
-            if not salvou:
-                logger.error('[ATO][SALVAR] Persistência da minuta não confirmada (nem snackbar nem botão Salvar desabilitado) — abortando')
-                return False, False
-
-            if modelo_nome and not editor_tem_conteudo(driver):
-                logger.error('[ATO][SALVAR] Editor-alvo ficou vazio após salvar modelo "%s" — abortando', modelo_nome)
-                return False, False
-
-            # Salvar; sem isso o painel de destinatários/prazo não renderiza e
+            # Ativa aba de intimações/destinatários (padrão estável pré-958cc83)
             aba_ok = _ativar_aba_intimacoes(driver)
 
             if not aba_ok:
                 logger.warning('[ATO][ABA] Painel de intimações NÃO confirmado pelo clique — '
                                'verificando controles de destinatários')
 
-            aguardar_renderizacao_nativa(
-                driver,
-                'button[aria-label="Gravar a intimação/notificação"], '
-                'pje-intimacao-automatica label.mat-slide-toggle-label, '
-                'mat-checkbox[aria-label="Enviar para PEC"], '
-                'div.checkbox-pec mat-checkbox, '
-                'table.t-class tr.ng-star-inserted, '
-                'button#selecionar-polo-ativo',
-                modo='aparecer',
-                timeout=15,
-            )
+            if not salvou and not aba_ok:
+                salvou = bool(espera.ate_js(driver, f"({js_snack_salvo})() || ({js_salvar_desabilitado})()", teto=2))
+            if not salvou and not aba_ok:
+                salvou = bool(aguardar_renderizacao_nativa(
+                    driver,
+                    'pje-intimacao-automatica label.mat-slide-toggle-label, '
+                    'button[aria-label="Gravar a intimação/notificação"], '
+                    'mat-checkbox[aria-label="Enviar para PEC"], '
+                    'button#selecionar-polo-ativo',
+                    modo='aparecer',
+                    timeout=15,
+                ))
 
-            espera.assentar(driver, 1.0, motivo='estabilização pós-salvamento da minuta')
+            if not salvou and not aba_ok:
+                logger.warning('[ATO][SALVAR] 1º clique em Salvar sem confirmação — retentando Salvar')
+                btn_salvar_retry = wait_for_clickable(driver, seletor_btn_salvar, timeout=3)
+                if btn_salvar_retry:
+                    safe_click(driver, btn_salvar_retry)
+                    espera.ate_sumir(driver, 'mat-progress-bar, mat-progress-spinner, .mat-progress-spinner, .mat-progress-bar', teto=15)
+                    salvou = bool(espera.ate_js(driver, f"({js_snack_salvo})() || ({js_salvar_desabilitado})()", teto=6))
+                    aba_ok = aba_ok or _ativar_aba_intimacoes(driver)
+
+            if not salvou and not aba_ok:
+                logger.error('[ATO][SALVAR] Sem confirmação positiva de salvamento (nem snackbar nem aba de destinatários) — abortando')
+                return False, False
+
+            if not aba_ok:
+                aguardar_renderizacao_nativa(
+                    driver,
+                    'button[aria-label="Gravar a intimação/notificação"], '
+                    'pje-intimacao-automatica label.mat-slide-toggle-label, '
+                    'mat-checkbox[aria-label="Enviar para PEC"], '
+                    'div.checkbox-pec mat-checkbox, '
+                    'table.t-class tr.ng-star-inserted, '
+                    'button#selecionar-polo-ativo',
+                    modo='aparecer',
+                    timeout=15,
+                )
             logger.info('[ATO][SALVAR] Minuta salva e aba destinatários pronta')
 
         except Exception as e:
@@ -812,10 +864,20 @@ def ato_judicial(
             except Exception as e:
                 logger.debug(f'[ATO][INTIMAR] Erro ao aguardar estabilização: {e}')
 
-        if intimar_ativado and (prazo is not None or marcar_primeiro_destinatario):
-            logger.info(f'[ATO][PRAZO] Configurando destinatários/prazos: prazo={prazo} (apenas_primeiro={marcar_primeiro_destinatario})')
+        if intimar_ativado and (prazo is not None or marcar_primeiro_destinatario or destinatario):
+            logger.info(
+                f'[ATO][PRAZO] Configurando destinatários/prazos: prazo={prazo} '
+                f'(apenas_primeiro={marcar_primeiro_destinatario}, destinatario={destinatario})'
+            )
             try:
-                if not preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=marcar_primeiro_destinatario, perito=perito):
+                if not preencher_prazos_destinatarios(
+                    driver,
+                    prazo,
+                    apenas_primeiro=marcar_primeiro_destinatario,
+                    perito=perito,
+                    destinatario=destinatario,
+                    destinatarios_alvo=destinatarios_alvo,
+                ):
                     logger.error('[ATO][PRAZO] Falha ao preencher destinatários/prazos')
                     return False, False
                 logger.info('[ATO][PRAZO] Destinatários e prazos concluídos com sucesso')
@@ -997,13 +1059,25 @@ def ato_judicial(
                 salvou_final = bool(driver.page.evaluate(js_salvar_se_ativo))
             if salvou_final:
                 espera.ate_sumir(driver, 'mat-progress-bar, mat-progress-spinner, .mat-progress-spinner, .mat-progress-bar', teto=10)
+                js_snack_final = """() => {
+                    var snacks = Array.from(document.querySelectorAll('simple-snack-bar, snack-bar-container'));
+                    for (var s of snacks) {
+                        var txt = (s.innerText || '').toLowerCase();
+                        if (txt.includes('salva') || txt.includes('salvo') || txt.includes('sucesso')) {
+                            var btn = s.querySelector('button');
+                            if (btn) btn.click();
+                            return true;
+                        }
+                    }
+                    return false;
+                }"""
                 espera.ate_js(
                     driver,
-                    f"({js_snack_salvo})() || ({js_salvar_desabilitado})()",
-                    teto=5,
+                    f"({js_snack_final})() || ({js_salvar_desabilitado})()",
+                    teto=2.0,
                 )
                 logger.info('[ATO][SALVAR_FINAL] Ato salvo e confirmado')
-                espera.assentar(driver, 1.0)
+                espera.assentar(driver, 0.25, motivo='estabilização final pós-salvar')
             elif movimento:
                 logger.debug('[ATO][SALVAR_FINAL] Nenhum botão Salvar ativo (movimento já gravou)')
             else:
@@ -1012,14 +1086,23 @@ def ato_judicial(
             logger.warning(f'[ATO][SALVAR_FINAL] {e}')
 
         if Assinar:
-            logger.info('[ATO][ASSINAR] Clicando em assinar...')
+            logger.info('[ATO][ASSINAR] Clicando em enviar para assinatura / assinar...')
             try:
-                btn_assinar = wait_for_clickable(driver, 'button#assinar', timeout=5)
+                _SEL_ASSINAR_ATO = (
+                    'button[aria-label="Enviar para assinatura"], '
+                    'button[aria-label="Assinar ato(s)"], '
+                    'button#assinar'
+                )
+                btn_assinar = wait_for_clickable(driver, _SEL_ASSINAR_ATO, timeout=8)
                 if btn_assinar:
                     safe_click_no_scroll(driver, btn_assinar)
-                    logger.info('[ATO][ASSINAR] Assinar clicado')
+                    logger.info('[ATO][ASSINAR] Botão Enviar para assinatura / Assinar clicado')
+                    from .judicial_utils import aguardar_pos_clique_assinar
+                    if not aguardar_pos_clique_assinar(driver, contexto='ATO', seletor_assinar=_SEL_ASSINAR_ATO):
+                        logger.error('[ATO][ASSINAR] Envio/assinatura não confirmado após clique')
+                        return False, False
                 else:
-                    raise Exception('Botão assinar não disponível')
+                    raise Exception('Botão Enviar para assinatura / assinar não disponível')
             except Exception as e:
                 logger.error(f'[ATO][ASSINAR]  Erro ao clicar em assinar: {e}')
                 return False, False
@@ -1068,7 +1151,11 @@ def make_ato_wrapper(
     coleta_conteudo: Optional[Callable] = None,
     inserir_conteudo: Optional[Callable] = None,
     intimar: Optional[bool] = None,
-    atribuir_visibilidade_autor: Optional[bool] = False
+    atribuir_visibilidade_autor: Optional[bool] = False,
+    via_api: Optional[bool] = None,
+    conclusao_api: Optional[str] = None,
+    destinatario: Optional[str] = None,
+    destinatarios_alvo: Optional[Any] = None,
 ) -> Callable[[Any, Any], Tuple[bool, bool]]:
     """Factory function que cria um wrapper para ato_judicial com parâmetros pré-definidos."""
     def wrapper(driver, **kwargs):
@@ -1087,7 +1174,11 @@ def make_ato_wrapper(
             'coleta_conteudo': coleta_conteudo,
             'inserir_conteudo': inserir_conteudo,
             'intimar': intimar,
-            'atribuir_visibilidade_autor': atribuir_visibilidade_autor
+            'atribuir_visibilidade_autor': atribuir_visibilidade_autor,
+            'via_api': via_api,
+            'conclusao_api': conclusao_api,
+            'destinatario': destinatario,
+            'destinatarios_alvo': destinatarios_alvo,
         }
         params.update(kwargs)
         return ato_judicial(driver, **params)

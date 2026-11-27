@@ -17,7 +17,7 @@ from __future__ import annotations
 import calendar
 import re
 import unicodedata
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -26,6 +26,9 @@ from Fix.variaveis import cliente_para
 
 DEFAULT_PAGE_SIZE = 500
 DEFAULT_TIMEOUT_S = 60
+DEFAULT_MESES_JANELA_API = 12
+CONVENIOS_REAPROVEITAVEIS_IDS: Tuple[int, ...] = (2, 3, 4)  # RENAJUD, INFOJUD, ARISP (exclui SISBAJUD/CNIB/SERASAJUD)
+MAX_PAGINAS_API = 10
 MAX_ANOS_INFOJUD_POR_TIPO = 3
 PASTA_SAIDA_PADRAO = Path.home() / "Downloads" / "ArgosPoupa"
 
@@ -303,24 +306,42 @@ def buscar_todas_reaproveitaveis(
     *,
     tamanho_pagina: int = DEFAULT_PAGE_SIZE,
     apenas_localizacao_usuario: bool = False,
+    meses_limite: Optional[int] = DEFAULT_MESES_JANELA_API,
+    convenios_ids: Optional[Sequence[int]] = CONVENIOS_REAPROVEITAVEIS_IDS,
+    max_paginas: int = MAX_PAGINAS_API,
 ) -> Dict[str, Any]:
     docs_limpos = list(dict.fromkeys(_so_digitos(d) for d in docs if _so_digitos(d)))
     if not docs_limpos:
         return {"totalRegistros": 0, "qtdPaginas": 0, "paginasLidas": 0, "resultado": []}
 
     url = client._url("/pje-argos-api/api/consulta-tarefas-reaproveitaveis")
+    data_ini_iso: Optional[str] = None
+    data_fim_iso: Optional[str] = None
+    if meses_limite and int(meses_limite) > 0:
+        agora = datetime.now(timezone.utc)
+        dt_ini = _subtrair_meses(agora, int(meses_limite)).replace(hour=0, minute=0, second=0, microsecond=0)
+        data_ini_iso = dt_ini.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        data_fim_iso = (agora + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=0).strftime("%Y-%m-%dT%H:%M:%S.999Z")
+
     todos: List[Dict[str, Any]] = []
     pagina = 1
     qtd_paginas = 1
     total_registros = 0
+    teto_paginas = max(1, int(max_paginas or MAX_PAGINAS_API))
 
-    while pagina <= qtd_paginas:
+    while pagina <= qtd_paginas and pagina <= teto_paginas:
         params: List[Tuple[str, str]] = [
             ("pesquisarProcessos", "true"),
             ("pesquisasRealizadasNaLocalizacaoUsuarioLogado", "true" if apenas_localizacao_usuario else "false"),
         ]
         for d in docs_limpos:
             params.append(("pesquisaRapidaMultiplaTarefas", d))
+        if data_ini_iso and data_fim_iso:
+            params.append(("intervaloDataPesquisa", "INTERVALO_PERSONALIZADO"))
+            params.append(("dataInicial", data_ini_iso))
+            params.append(("dataFinal", data_fim_iso))
+        for cid in (convenios_ids or ()):
+            params.append(("convenio", str(cid)))
         params.append(("pagina", str(pagina)))
         params.append(("tamanhoPagina", str(tamanho_pagina)))
 
@@ -330,6 +351,13 @@ def buscar_todas_reaproveitaveis(
         data = r.json() or {}
         total_registros = int(data.get("totalRegistros") or total_registros)
         qtd_paginas = int(data.get("qtdPaginas") or 1)
+        if pagina == 1 and qtd_paginas > teto_paginas:
+            logger.warning(
+                "[ARGOS_POUPA] resposta com %d páginas (%d registros) — limitando leitura a %d página(s)",
+                qtd_paginas,
+                total_registros,
+                teto_paginas,
+            )
         lote = data.get("resultado") or []
         for item in lote:
             todos.append(normalizar_tarefa(item))

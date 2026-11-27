@@ -598,7 +598,14 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
         logger.debug('[COOKIES] %s cookies carregados de %s', cookies_carregados, os.path.basename(arquivo_mais_recente))
 
         driver.get('https://pje.trt2.jus.br/pjekz/gigs/meu-painel')
-        espera.ate_url(driver, "gigs/meu-painel", teto=5)
+        espera.ate(
+            driver,
+            lambda d: any(
+                k in (getattr(d, 'current_url', '') or '').lower()
+                for k in ('gigs/meu-painel', 'acesso-negado', 'login')
+            ),
+            teto=5,
+        )
 
         if 'acesso-negado' in driver.current_url.lower():
             logger.warning('[COOKIES] URL de acesso negado detectada. Apagando cookies carregados.')

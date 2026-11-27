@@ -70,15 +70,25 @@ _JS_EDITOR_COM_CONTEUDO = """(sel) => {
     var areas = Array.from(document.querySelectorAll(sel)).filter(function(el) {
         return !el.closest('pje-dialogo-visualizar-modelo');
     });
-    var area = areas[0];
-    if (!area) return false;
-    // Placeholder ("Dispositivo", "Digite aqui...") tambem e innerText > 1 char e
-    // fazia a confirmacao passar com o editor VAZIO — remover antes de medir.
-    var clone = area.cloneNode(true);
-    clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, [data-placeholder]').forEach(p => p.remove());
-    var texto = (clone.innerText || '').trim();
-    if (texto.length > 1) return true;          // texto real no editor
-    return area.querySelector('figure') !== null;  // imagem anexada sem texto
+    if (!areas.length) return false;
+    // Placeholder visual (.placeholder-conteudo / .ck-placeholder) pode ter innerText > 1 char;
+    // NAO remover [data-placeholder] porque CKEditor mantem esse atributo em <p> com texto real.
+    for (var i = 0; i < areas.length; i++) {
+        var area = areas[i];
+        try {
+            var ck = area.ckeditorInstance;
+            if (ck && typeof ck.getData === 'function') {
+                var dados = (ck.getData() || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').trim();
+                if (dados.length > 1) return true;
+            }
+        } catch (e) {}
+        var clone = area.cloneNode(true);
+        clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder').forEach(p => p.remove());
+        var texto = (clone.innerText || clone.textContent || '').trim();
+        if (texto.length > 1) return true;          // texto real no editor
+        if (area.querySelector('figure') !== null) return true;  // imagem anexada sem texto
+    }
+    return false;
 }"""
 
 _JS_TRECHO_PREVIEW = """() => {
@@ -87,8 +97,9 @@ _JS_TRECHO_PREVIEW = """() => {
     var preview = dlg.querySelector('.div-preview-conteudo, .preview-conteudo, .conteudo-modelo, .ck-content, [class*="preview"]');
     if (!preview) return '';
     var clone = preview.cloneNode(true);
-    clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, [data-placeholder], button').forEach(p => p.remove());
-    var txt = (clone.innerText || clone.textContent || '').replace(/\\u00a0/g, ' ').replace(/\\s+/g, ' ').trim().toLowerCase();
+    clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, button').forEach(p => p.remove());
+    var raw = (clone.innerText || clone.textContent || '').replace(/\\u00a0/g, ' ').toLowerCase();
+    var txt = raw.replace(/[^a-z0-9\\u00c0-\\u024f]+/g, ' ').trim();
     var palavras = txt.split(' ').filter(w => w.length > 2);
     if (palavras.length < 4) return '';
     var meio = Math.max(0, Math.floor(palavras.length / 2) - 3);
@@ -101,7 +112,8 @@ _JS_EDITOR_CONTEM_TRECHO = """(trecho) => {
         'div[class*="area-conteudo"][contenteditable="true"], div[class*="area-conteudo"] div[contenteditable="true"], .ck-editor__editable[contenteditable="true"]'));
     for (var a of areas) {
         if (a.closest('pje-dialogo-visualizar-modelo')) continue;
-        var txt = (a.innerText || a.textContent || '').replace(/\\u00a0/g, ' ').replace(/\\s+/g, ' ').toLowerCase();
+        var raw = (a.innerText || a.textContent || '').replace(/\\u00a0/g, ' ').toLowerCase();
+        var txt = raw.replace(/[^a-z0-9\\u00c0-\\u024f]+/g, ' ').trim();
         var palavras = txt.split(' ').filter(w => w.length > 2).join(' ');
         if (palavras.indexOf(trecho) !== -1) return true;
     }
@@ -193,12 +205,13 @@ def _sincronizar_editor_alvo(driver: Any, seletor: str) -> bool:
 def editor_tem_conteudo(driver: Any, seletor: Optional[str] = None) -> bool:
     """Verifica se o editor-alvo contém texto real (sem placeholders) ou figura."""
     sel = seletor or _resolver_editor_alvo(driver)
-    expr = "(%s)(%s)" % (_JS_EDITOR_COM_CONTEUDO, json.dumps(sel))
     try:
         if hasattr(driver, 'page'):
-            return bool(driver.page.evaluate(expr))
+            return bool(driver.page.evaluate(_JS_EDITOR_COM_CONTEUDO, sel))
+        expr = "(%s)(%s)" % (_JS_EDITOR_COM_CONTEUDO, json.dumps(sel))
         return bool(espera.ate_js(driver, expr, teto=0.5))
-    except Exception:
+    except Exception as e:
+        logger.warning('[MODELO] editor_tem_conteudo exceção (sel=%s): %s', sel, e)
         return False
 
 
@@ -301,6 +314,12 @@ def inserir_modelo_no_editor(
         ):
             log('[MODELO] Árvore de modelos não apareceu em 20s — página de minutar sem árvore')
             return False
+        espera.ate_sumir(
+            driver,
+            'pje-arvore-modelo-documento mat-progress-spinner, pje-arvore-modelo-documento mat-progress-bar, '
+            'pje-arvore-modelo-documento .fa-spin, pje-editor-lateral mat-progress-spinner',
+            teto=12,
+        )
         seletor_editor_alvo = _resolver_editor_alvo(driver) or seletor_editor_alvo
 
         if not _preencher_filtro_modelo(driver, modelo_nome):
@@ -326,12 +345,13 @@ def inserir_modelo_no_editor(
                 log(f'[MODELO] Diálogo de visualização não abriu ({rotulo} tentativa) — refazendo')
                 continue
 
-            espera.assentar(driver, 1.0, motivo='PJe montando o teor do modelo no diálogo')
-
             if not espera.ate_js(driver, f"({_JS_TEOR_CARREGADO})()", teto=timeout_teor):
                 log(f'[MODELO] Teor do preview não confirmado em {timeout_teor}s ({rotulo} tentativa) — fechando e refazendo')
                 aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='sumir', timeout=5)
                 continue
+
+            # Pequeno respiro pós-teor para o Angular finalizar o binding do botão Inserir
+            espera.assentar(driver, 0.25, motivo='binding final do diálogo de modelo')
 
             btn_inserir = wait_for_clickable(driver, _SEL_BTN_INSERIR, timeout=10)
             if not btn_inserir:
@@ -396,21 +416,19 @@ def inserir_modelo_no_editor(
                     log(f'[MODELO] Teor do modelo "{modelo_nome}" NÃO encontrado no editor '
                         f'({rotulo} tentativa) — refazendo')
             if conteudo_confirmado:
-                break
+                # Reconfirma após breve assentamento (dentro do loop de retry): se
+                # algum carregamento tardio zerar o editor, reinserimos sem abortar.
+                espera.assentar(driver, 0.3, motivo='reconfirmação pós-inserção do modelo')
+                if editor_tem_conteudo(driver, seletor_editor_alvo):
+                    break
+                log(f'[MODELO] Editor-alvo esvaziou durante estabilização ({rotulo} tentativa) — reinserindo "{modelo_nome}"')
+                conteudo_confirmado = False
+                continue
             log(f'[MODELO] Conteúdo do modelo "{modelo_nome}" NÃO confirmado no editor-alvo '
                 f'({seletor_editor_alvo}) após {timeout_conteudo}s ({rotulo} tentativa) — refazendo')
 
         if not conteudo_confirmado:
             log(f'[MODELO] Conteúdo do modelo "{modelo_nome}" não entrou no editor após 3 tentativas')
-            return False
-
-        #    para forçar sync dos eventos do CKEditor com o modelo de formulário do Angular)
-        _focar_editor_alvo(driver)
-        _sincronizar_editor_alvo(driver, seletor_editor_alvo)
-        espera.assentar(driver, 0.8, motivo='estabilização pós-inserção do modelo')
-
-        if not editor_tem_conteudo(driver, seletor_editor_alvo):
-            log(f'[MODELO] Editor-alvo ({seletor_editor_alvo}) esvaziou após sincronização para "{modelo_nome}"')
             return False
 
         log(

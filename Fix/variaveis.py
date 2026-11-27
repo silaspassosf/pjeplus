@@ -250,7 +250,7 @@ class PjeApiClient:
         if headers:
             request_headers.update(headers)
         if 'X-XSRF-TOKEN' not in request_headers:
-            for nome_cookie in ('XSRF-TOKEN', 'xsrf-token', 'csrf-token', 'X-CSRF-TOKEN'):
+            for nome_cookie in ('Xsrf-Token', 'XSRF-TOKEN', 'xsrf-token', 'csrf-token', 'X-CSRF-TOKEN'):
                 try:
                     token = self.sess.cookies.get(nome_cookie)
                 except Exception:

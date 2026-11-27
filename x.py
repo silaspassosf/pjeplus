@@ -593,12 +593,19 @@ def executar_atualizacao_rapida_fluxo(driver) -> Dict[str, Any]:
     )
 
 
-def executar_chipadv(driver) -> ResultadoFluxo:
+def executar_chipadv(driver, driver_type=None) -> ResultadoFluxo:
     """Chip Advogado impedido de Atuar (adv.run_chipadv)."""
     from adv import run_chipadv
 
+    recriar_cb = (
+        (lambda drv, motivo: _recriar_driver_com_login(drv, driver_type, motivo))
+        if driver_type is not None
+        else None
+    )
     return _executar_fluxo(
-        "Chip_Advogado", run_chipadv, driver,
+        "Chip_Advogado",
+        lambda drv: run_chipadv(drv, recriar_driver=recriar_cb),
+        driver,
         on_none_error={"sucesso": False, "status": "ERRO_EXECUCAO", "erro": "run_chipadv retornou None"},
     )
 
@@ -960,6 +967,8 @@ def _executar_um_fluxo(driver, fluxo: str, driver_type) -> dict:
 
     if fluxo == "A":
         return executar_bloco_completo(driver, driver_type=driver_type)
+    if fluxo == "J":
+        return executar_chipadv(driver, driver_type=driver_type)
 
     resultado = handler(driver)
     # Recupera sessão/driver (acesso-negado, RESTART_PEC, crash ou falha imediata <2s);

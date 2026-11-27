@@ -10,6 +10,9 @@
     const API_BASE = window.location.origin + '/pje-argos-api/api';
     const DEFAULT_PAGE_SIZE = 500;
     const DEFAULT_TIMEOUT_MS = 60000;
+    const DEFAULT_MESES_JANELA_API = 12;
+    const CONVENIOS_REAPROVEITAVEIS_IDS = [2, 3, 4]; // RENAJUD, INFOJUD, ARISP (exclui SISBAJUD/CNIB/SERASAJUD)
+    const MAX_PAGINAS_API = 10;
     const MAX_ANOS_INFOJUD_POR_TIPO = 3;
 
     const showToast = window.showToast || function (texto) {
@@ -295,9 +298,22 @@
         const tamanhoPagina = opts.tamanhoPagina || DEFAULT_PAGE_SIZE;
         const apenasLocalizacaoUsuario = !!opts.apenasLocalizacaoUsuario;
         const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : null;
+        const mesesLimite = opts.mesesLimite !== undefined ? opts.mesesLimite : DEFAULT_MESES_JANELA_API;
+        const conveniosIds = opts.conveniosIds !== undefined ? opts.conveniosIds : CONVENIOS_REAPROVEITAVEIS_IDS;
+        const maxPaginas = Math.max(1, Number(opts.maxPaginas || MAX_PAGINAS_API));
 
         if (!docs || !docs.length) {
             return { totalRegistros: 0, qtdPaginas: 0, paginasLidas: 0, resultado: [], msTotal: 0 };
+        }
+
+        let dataIniIso = null;
+        let dataFimIso = null;
+        if (mesesLimite && Number(mesesLimite) > 0) {
+            const agora = new Date();
+            const ini = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() - Number(mesesLimite), agora.getUTCDate(), 0, 0, 0, 0));
+            const fim = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), agora.getUTCDate() + 1, 23, 59, 59, 999));
+            dataIniIso = ini.toISOString();
+            dataFimIso = fim.toISOString();
         }
 
         const t0 = performance.now();
@@ -306,11 +322,17 @@
         let qtdPaginas = 1;
         let totalRegistros = 0;
 
-        while (pagina <= qtdPaginas) {
+        while (pagina <= qtdPaginas && pagina <= maxPaginas) {
             const qs = new URLSearchParams();
             qs.set('pesquisarProcessos', 'true');
             qs.set('pesquisasRealizadasNaLocalizacaoUsuarioLogado', String(apenasLocalizacaoUsuario));
             for (const d of docs) qs.append('pesquisaRapidaMultiplaTarefas', d);
+            if (dataIniIso && dataFimIso) {
+                qs.set('intervaloDataPesquisa', 'INTERVALO_PERSONALIZADO');
+                qs.set('dataInicial', dataIniIso);
+                qs.set('dataFinal', dataFimIso);
+            }
+            for (const cid of (conveniosIds || [])) qs.append('convenio', String(cid));
             qs.set('pagina', String(pagina));
             qs.set('tamanhoPagina', String(tamanhoPagina));
 

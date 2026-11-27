@@ -683,3 +683,55 @@ ato_ed = make_ato_wrapper(
     marcar_primeiro_destinatario=False,
     descricao='Sentença de ED'
 )
+
+_ato_regadv_base = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    descricao='Advogado impedido excluído - regularizar',
+    modelo_nome='regadv',
+    prazo=10,
+    Assinar=True,
+    inserir_conteudo=None,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    destinatario='alvo',
+    marcar_primeiro_destinatario=False,
+)
+
+
+def ato_regadv(driver, vinculos=None, conteudo_advdelete=None, **kwargs):
+    """Despacho de regularização após exclusão de advogado impedido.
+
+    Preenche o marcador `--` do modelo `regadv` com o mesmo conteúdo formatado
+    de `anex_advdelete` (`Nome da empresa, Advogado - CPF: ...`) e restringe
+    a seleção de intimação aos `destinatarios_alvo` (partes sem advogado regular).
+    """
+    if 'destinatarios_alvo' not in kwargs and vinculos:
+        alvos = []
+        for v in vinculos:
+            if isinstance(v, dict):
+                parte = (v.get('parte') or '').strip()
+                if parte and parte not in alvos:
+                    alvos.append(parte)
+        if alvos:
+            kwargs['destinatarios_alvo'] = alvos
+    if 'inserir_conteudo' not in kwargs and (vinculos is not None or conteudo_advdelete is not None):
+        from .wrappers_anex import formatar_conteudo_advdelete
+        from Fix.utils import substituir_marcador_por_conteudo
+
+        conteudo = (
+            conteudo_advdelete
+            if conteudo_advdelete is not None
+            else formatar_conteudo_advdelete(vinculos)
+        )
+
+        def _inserir_regadv(drv):
+            return substituir_marcador_por_conteudo(
+                driver=drv,
+                conteudo_customizado=conteudo or '',
+                debug=True,
+                marcador='--',
+            )
+
+        kwargs['inserir_conteudo'] = _inserir_regadv
+    return _ato_regadv_base(driver, **kwargs)

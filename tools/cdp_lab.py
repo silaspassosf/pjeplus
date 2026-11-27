@@ -320,7 +320,20 @@ def _fazer_login(bidi: _BiDiClient, ctx: str, url_destino: Optional[str], headle
         cur_url = bidi.eval_js(ctx, "location.href") or ""
         if "/pjekz" not in str(cur_url).lower() or (url_destino and url_destino not in str(cur_url)):
             bidi.navegar(ctx, alvo, wait="interactive")
-        return True
+        # cookie de refresh vencido: o PJe cai em /acesso-negado ou /login sem access_token
+        estado_sessao = _aguardar_js(
+            bidi, ctx,
+            """(() => {
+                const u = location.href.toLowerCase();
+                if (u.includes('acesso-negado') || u.includes('/login')) return 'expirada';
+                if (u.includes('/pjekz') && document.cookie.includes('access_token')) return 'ok';
+                return null;
+            })()""",
+            timeout_s=10,
+        )
+        if estado_sessao != "expirada":
+            return True
+        print("[LAB] Sessao expirada (acesso negado) — refazendo login.")
 
     print(f"[LAB] Abrindo login PJe: {URL_LOGIN_PJE}")
     bidi.navegar(ctx, URL_LOGIN_PJE, wait="complete")

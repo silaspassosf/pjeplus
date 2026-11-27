@@ -161,6 +161,13 @@ def navegar_para_tarefa(
 ) -> bool:
     """Navega para a tarefa de destino aplicando a máquina de estados do gigs-plugin.js."""
     try:
+        from .judicial_api import cls_api_habilitada, transitar_tarefa_api
+        if cls_api_habilitada():
+            alvo_api = tarefa_destino if clicar_destino else 'Análise'
+            res_api = transitar_tarefa_api(driver, alvo_api, abrir_url=True)
+            if res_api:
+                return res_api.get('_status_api') != 'bloqueado_regra'
+
         tarefa_atual = tarefa_atual_conhecida or _obter_tarefa_atual(driver, debug)
         if not tarefa_atual:
             logger.warning('[NAVEGAR_TAREFA] Nao foi possivel identificar tarefa atual')

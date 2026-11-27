@@ -32,7 +32,10 @@ URL_PAINEL_PRAZOS_VENCIDOS = "https://pje.trt2.jus.br/pjekz/painel/global/14/lis
 URL_PAINEL_CUMPRIMENTO = "https://pje.trt2.jus.br/pjekz/painel/global/6/lista-processos"
 FASES_PRAZOS_VENCIDOS = ("liquidação", "execução")
 
-_SEL_SPINNERS = "div.carregando, mat-progress-spinner, mat-spinner"
+_SEL_SPINNERS = (
+    "div.carregando, mat-progress-spinner, mat-spinner, "
+    "mat-progress-bar, .mat-progress-bar-primary.mat-progress-bar-fill"
+)
 _SEL_BACKDROP = ".cdk-overlay-backdrop.cdk-overlay-backdrop-showing"
 _XPATH_LISTA_VAZIA = "//span[contains(text(), 'Não há processos neste tema')]"
 _XPATH_FILTRO_100_ATIVO = "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='100']"
@@ -76,11 +79,9 @@ try {
 
 
 def _aguardar_tela_livre(driver, teto: float = 5.0) -> bool:
-    """Barreira leve: aguarda apenas backdrop modal sumir; se paginação já carregou, não trava em spinner."""
-    ok_drop = espera.ate_sumir(driver, _SEL_BACKDROP, teto=min(teto, 3.0))
-    if _ler_texto_paginacao(driver) or espera.elemento(driver, _XPATH_LISTA_VAZIA, teto=0.0):
-        return bool(ok_drop)
-    ok_spin = espera.ate_sumir(driver, _SEL_SPINNERS, teto=min(teto, 3.0))
+    """Barreira de tela livre: aguarda backdrop modal e spinners/progress-bar sumirem."""
+    ok_drop = espera.ate_sumir(driver, _SEL_BACKDROP, teto=min(teto, 5.0))
+    ok_spin = espera.ate_sumir(driver, _SEL_SPINNERS, teto=teto)
     return bool(ok_spin and ok_drop)
 
 
@@ -130,25 +131,32 @@ def _contar_linhas_tabela(driver) -> int:
 
 
 def _aguardar_estabilizacao_tabela(driver, minimo_linhas: int = 1, teto: float = 15.0) -> bool:
-    """Aguarda a tabela renderizar todas as linhas esperadas da página e assentar dados GIGS."""
+    """Aguarda spinners sumirem, tabela renderizar todas as linhas esperadas e assentar GIGS."""
     def _linhas_prontas(drv):
+        if espera.elemento(drv, _SEL_SPINNERS, teto=0.0):
+            return False
         if _lista_esta_vazia(drv):
             return True
         esperado = _ler_esperado_na_pagina(drv)
         alvo = max(minimo_linhas, esperado if esperado > 0 else minimo_linhas)
         qtd = _contar_linhas_tabela(drv)
-        if qtd >= alvo:
-            return True
-        if alvo > 1 and espera.elemento(drv, "tr.cdk-drag", teto=0.0) and esperado <= 0:
-            return True
-        return False
+        return qtd >= alvo
 
     ok = bool(espera.ate(driver, _linhas_prontas, teto=teto))
+    if not ok:
+        logger.warning(
+            "[PRAZO] Tabela não atingiu estabilização (linhas=%d, paginacao='%s', minimo=%d)",
+            _contar_linhas_tabela(driver),
+            _ler_texto_paginacao(driver),
+            minimo_linhas,
+        )
+        return False
     espera.ate_sumir(driver, _SEL_BACKDROP, teto=2.0)
+    espera.ate_sumir(driver, _SEL_SPINNERS, teto=5.0)
     # Aguarda a 2ª onda assíncrona do painel (poridsprocessos / etiquetasprocessos) popular as linhas
     espera.assentar(driver, 0.8, motivo="estabilizacao_pos_tabela")
     espera.pausa(driver, 0.5, motivo="hidratacao_gigs_linhas")
-    return ok
+    return True
 
 
 def _lista_esta_vazia(driver) -> bool:
@@ -186,7 +194,12 @@ def _aguardar_estado_lista(driver, teto: float = 15.0) -> str:
     return str(estado)
 
 
-def _aguardar_recarregamento(driver, texto_antes: str = "", teto: float = 15.0) -> str:
+def _aguardar_recarregamento(
+    driver,
+    texto_antes: str = "",
+    teto: float = 15.0,
+    exigir_mudanca: bool = False,
+) -> str:
     """Aguarda a paginação atualizar após filtro/ação e confirma estado via span.total-registros."""
     espera.ate_sumir(driver, _SEL_BACKDROP, teto=3.0)
 
@@ -199,8 +212,15 @@ def _aguardar_recarregamento(driver, texto_antes: str = "", teto: float = 15.0) 
                 return True
             return False
 
-        espera.ate(driver, _mudou_ou_vazio, teto=min(teto, 4.0))
+        mudou = bool(espera.ate(driver, _mudou_ou_vazio, teto=teto))
+        if exigir_mudanca and not mudou:
+            logger.error(
+                "[PRAZO] Paginação não mudou após ação (mantido='%s')",
+                texto_antes,
+            )
+            return "erro"
 
+    espera.ate_sumir(driver, _SEL_SPINNERS, teto=teto)
     return _aguardar_estado_lista(driver, teto=teto)
 
 
@@ -264,9 +284,16 @@ def _aplicar_filtro_100_com_barreira(driver, tag: str = "[PRAZO]") -> bool:
     _aguardar_tela_livre(driver, teto=5.0)
     if espera.elemento(driver, _XPATH_FILTRO_100_ATIVO, teto=0.2):
         logger.info("%s Filtro lista 100 já ativo", tag)
-        if _aguardar_estado_lista(driver, teto=10.0) == "erro":
+        estado = _aguardar_estado_lista(driver, teto=10.0)
+        if estado == "erro":
             return False
-        _aguardar_estabilizacao_tabela(driver, minimo_linhas=1, teto=10.0)
+        if estado == "vazio":
+            return True
+        esperado = _ler_esperado_na_pagina(driver)
+        minimo = max(1, esperado) if esperado > 0 else 1
+        if not _aguardar_estabilizacao_tabela(driver, minimo_linhas=minimo, teto=20.0):
+            logger.error("%s Tabela não estabilizou com filtro 100 já ativo", tag)
+            return False
         return True
 
     texto_antes = _ler_texto_paginacao(driver)
@@ -277,17 +304,44 @@ def _aplicar_filtro_100_com_barreira(driver, tag: str = "[PRAZO]") -> bool:
         return False
 
     espera.ate_sumir(driver, _SEL_BACKDROP, teto=5.0)
-    espera.ate_aparecer(driver, _XPATH_FILTRO_100_ATIVO, teto=6.0)
+    if not espera.ate_aparecer(driver, _XPATH_FILTRO_100_ATIVO, teto=6.0):
+        logger.error("%s Seletor de paginação não confirmou '100'", tag)
+        return False
+
+    # Janela curta para o loader/progress-bar aparecer após selecionar 100
+    espera.ate_aparecer(driver, _SEL_SPINNERS, teto=0.6)
+
+    exigir_mudanca = bool(texto_antes and total_antes > 20)
     estado = _aguardar_recarregamento(
         driver,
-        texto_antes=texto_antes if total_antes > 20 else "",
-        teto=15.0,
+        texto_antes=texto_antes if exigir_mudanca else "",
+        teto=25.0,
+        exigir_mudanca=exigir_mudanca,
     )
     if estado == "erro":
         logger.error("%s Lista não estabilizou após filtro 100", tag)
         return False
-    minimo_esperado = min(total_antes, 100) if total_antes > 20 else max(1, total_antes)
-    _aguardar_estabilizacao_tabela(driver, minimo_linhas=minimo_esperado, teto=15.0)
+    if estado == "vazio":
+        logger.info("%s Lista ficou vazia após filtro 100", tag)
+        return True
+
+    total_atual = _ler_total_registros(driver)
+    referencia = total_atual if total_atual > 0 else total_antes
+    esperado_pagina = _ler_esperado_na_pagina(driver)
+    minimo_esperado = max(
+        1,
+        esperado_pagina if esperado_pagina > 0 else (min(referencia, 100) if referencia > 0 else 1),
+    )
+    if not _aguardar_estabilizacao_tabela(driver, minimo_linhas=minimo_esperado, teto=25.0):
+        logger.error(
+            "%s Filtro 100 não concluiu renderização antes do xs1 (esperado>=%d, linhas=%d, paginacao='%s')",
+            tag,
+            minimo_esperado,
+            _contar_linhas_tabela(driver),
+            _ler_texto_paginacao(driver),
+        )
+        return False
+
     logger.info("%s Filtro 100 concluído e tabela estabilizada (%s)", tag, _ler_texto_paginacao(driver) or estado)
     return True
 
@@ -407,7 +461,10 @@ def _avancar_pagina_com_barreira(driver, texto_antes: str, tag: str) -> bool:
             return False
 
     _aguardar_tela_livre(driver, teto=15.0)
-    return _aguardar_estado_lista(driver, teto=10.0) == "ok"
+    if _aguardar_estado_lista(driver, teto=10.0) != "ok":
+        return False
+    esperado = _ler_esperado_na_pagina(driver)
+    return _aguardar_estabilizacao_tabela(driver, minimo_linhas=max(1, esperado), teto=20.0)
 
 
 def _executar_painel_livres_xs1(

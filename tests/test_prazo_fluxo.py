@@ -450,3 +450,82 @@ def test_inicar_exec_cria_gigs_pjdp_quando_passivo_tem_procuradoria_ou_nome_ente
             assert chamadas_pjdp == [((), {"observacao": "PJDP no polo passivo, verificar"})]
         else:
             assert chamadas_pjdp == []
+
+
+def test_filtro_100_nao_finalizado_bloqueia_disparo_de_xs1(monkeypatch):
+    """Regressão: se filtro 100 não atualizar a paginação (>20), xs1 não pode ser disparado."""
+    driver, estado = _patch_ambiente(
+        monkeypatch,
+        {
+            "vencidos": {
+                "paginacao_inicial": "1 - 20 de 60",
+                "paginacao_pos_fases": "1 - 20 de 60",
+                "paginacao_pos_100": "1 - 20 de 60",  # não atualizou para 1 - 60 de 60
+            },
+            "cumprimento": {"vazio_inicial": True},
+        },
+        selecoes_por_chamada=[5],
+    )
+
+    res = lo.loop_prazo(driver)
+
+    assert res.sucesso is False
+    tipos = [ev[0] for ev in estado["eventos"]]
+    assert "aplicar_filtro_100" in tipos
+    assert "selecionar_livres" not in tipos
+    assert "salvar_xs1" not in tipos
+
+
+def test_xs1_so_dispara_apos_tabela_100_terminar_renderizacao_e_spinner_sumir(monkeypatch):
+    """Regressão: seleção e xs1 aguardam spinner sumir e todas as 60 linhas renderizarem."""
+    driver, estado = _patch_ambiente(
+        monkeypatch,
+        {
+            "vencidos": {
+                "paginacao_inicial": "1 - 20 de 60",
+                "paginacao_pos_fases": "1 - 20 de 60",
+                "paginacao_pos_100": "1 - 60 de 60",
+            },
+            "cumprimento": {"vazio_inicial": True},
+        },
+        selecoes_por_chamada=[3],
+    )
+
+    # Simula 2 ciclos de carregamento: 1º com spinner e 20 linhas, 2º sem spinner e 40 linhas, 3º pronto com 60 linhas
+    fases_dom = [
+        {"spinner": True, "linhas": 20},
+        {"spinner": False, "linhas": 40},
+        {"spinner": False, "linhas": 60},
+    ]
+    idx_dom = {"i": 0}
+    orig_elemento = lo.espera.elemento
+    orig_exec_js = lo._executar_js
+
+    def _ate_iterativo(drv, condicao, teto=10, intervalo=0.05):
+        for _ in range(10):
+            res = condicao(drv)
+            if res:
+                return res
+            if idx_dom["i"] < len(fases_dom) - 1:
+                idx_dom["i"] += 1
+        return False
+
+    def _elemento_com_spinner(drv, seletor, teto=10, visivel=True):
+        if seletor == lo._SEL_SPINNERS and estado["filtro_100"]:
+            return _FakeElement("spin") if fases_dom[idx_dom["i"]]["spinner"] else None
+        return orig_elemento(drv, seletor, teto=teto, visivel=visivel)
+
+    def _exec_js_linhas(drv, script, *args):
+        if "querySelectorAll('tr.cdk-drag').length" in script and estado["filtro_100"]:
+            return fases_dom[idx_dom["i"]]["linhas"]
+        return orig_exec_js(drv, script, *args)
+
+    monkeypatch.setattr(lo.espera, "ate", _ate_iterativo)
+    monkeypatch.setattr(lo.espera, "elemento", _elemento_com_spinner)
+    monkeypatch.setattr(lo, "_executar_js", _exec_js_linhas)
+
+    res = lo.loop_prazo(driver)
+
+    assert res.sucesso is True
+    assert idx_dom["i"] == 2
+    assert any(ev[0] == "salvar_xs1" for ev in estado["eventos"])

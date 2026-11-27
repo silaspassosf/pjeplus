@@ -1,8 +1,23 @@
 """Vocabulário PJe nativo — as primitivas em que os fluxos portados são escritos."""
 import logging
 import re
+import time as _time
 
 logger = logging.getLogger("pjeplay")
+
+
+def _aguardar_eval(page, fn, timeout=10, passo_ms=50):
+    """Polling síncrono via `page.evaluate` (imune a `ZoneAwarePromise` no Firefox)."""
+    limite = _time.monotonic() + max(0.0, float(timeout))
+    while True:
+        try:
+            if page.evaluate(fn):
+                return True
+        except Exception:
+            pass
+        if _time.monotonic() >= limite:
+            return False
+        page.wait_for_timeout(passo_ms)
 
 PAINEL_CDK = "div.cdk-overlay-pane"
 BACKDROP_CDK = ".cdk-overlay-backdrop"
@@ -65,11 +80,9 @@ def _ms(timeout):
 def aguardar_angular(alvo, timeout=10):
     """Aguarda o ngZone estabilizar. Cai para ausência de spinner (R4)."""
     page = pagina(alvo)
-    try:
-        page.wait_for_function(_JS_ANGULAR_ESTAVEL, timeout=_ms(timeout))
+    if _aguardar_eval(page, _JS_ANGULAR_ESTAVEL, timeout=timeout):
         return True
-    except Exception:
-        return esperar_spinner(page, timeout=timeout)
+    return esperar_spinner(page, timeout=timeout)
 
 
 def esperar_spinner(alvo, timeout=30):
@@ -233,11 +246,7 @@ def fechar_abas_extras(alvo, manter=None):
 def ckeditor_versao(alvo, timeout=10):
     """Detecta CKEditor 4 / 5 / ausente, aguardando a inicialização (R3)."""
     page = pagina(alvo)
-    try:
-        page.wait_for_function(
-            f"() => ({_JS_CKEDITOR_VERSAO})() !== null", timeout=_ms(timeout)
-        )
-    except Exception:
+    if not _aguardar_eval(page, f"() => ({_JS_CKEDITOR_VERSAO})() !== null", timeout=timeout):
         return None
     return page.evaluate(_JS_CKEDITOR_VERSAO)
 

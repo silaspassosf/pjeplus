@@ -448,6 +448,57 @@ def aguardar_transicao_minutar(driver: Any, timeout: float = 20.0) -> bool:
         return False
 
 
+_JS_MINUTA_PRONTA = """(() => {
+    if (!location.href.toLowerCase().includes('/minutar')) return false;
+    const vis = el => !!(el && el.getClientRects().length > 0);
+    const filtro = document.querySelector('input#inputFiltro, pje-arvore-modelo-documento input');
+    if (!vis(filtro) || filtro.disabled) return false;
+    const eds = Array.from(document.querySelectorAll(
+        'div[class*="area-conteudo"][contenteditable="true"], ' +
+        'div[class*="area-conteudo"] div[contenteditable="true"], ' +
+        'div.ck-content[contenteditable="true"]'
+    )).filter(e => !e.closest('pje-dialogo-visualizar-modelo'));
+    if (!eds.length) return false;
+    const edPronto = eds.some(e => {
+        if (!vis(e)) return false;
+        const ck = e.ckeditorInstance;
+        if (ck) return ck.state === 'ready' && !ck.isReadOnly;
+        const salvar = document.querySelector('button[aria-label="Salvar"]');
+        return vis(salvar);
+    });
+    if (!edPronto) return false;
+    const spinEditor = document.querySelectorAll(
+        'pje-editor-minuta mat-progress-spinner, pje-editor-minuta mat-progress-bar'
+    );
+    for (const s of spinEditor) {
+        if (vis(s)) return false;
+    }
+    return true;
+})()"""
+
+
+def aguardar_minuta_pronta(driver: Any, timeout: float = 15.0) -> bool:
+    """Aguarda a prontidão observável de `/minutar` após navegação direta (CLS-API).
+
+    Confirma, em um único predicado JS (sem sleep cego e sem travar em spinners
+    de fundo como a aba Documentos/timeline):
+      1. URL em `/minutar`;
+      2. `input#inputFiltro` visível e habilitado;
+      3. CKEditor montado com `ckeditorInstance.state === 'ready'` e `!isReadOnly`
+         (ou editor + botão Salvar visíveis);
+      4. Sem spinner ativo dentro de `pje-editor-minuta`.
+    """
+    try:
+        if espera.ate_js(driver, _JS_MINUTA_PRONTA, teto=timeout):
+            logger.info('[CLS-API] ✅ Minuta pronta (editor ready + filtro ativo)')
+            return True
+        logger.warning('[CLS-API] Timeout (%.1fs) aguardando editor/filtro prontos em /minutar', timeout)
+        return False
+    except Exception as e:
+        logger.warning('[CLS-API] Erro ao aguardar minuta pronta: %s', e)
+        return False
+
+
 def verificar_estado_atual(driver: Any) -> str:
     """Verifica o estado atual do processo baseado na URL."""
     current_url = (driver.current_url or '').lower()

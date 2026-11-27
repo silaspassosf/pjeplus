@@ -66,6 +66,7 @@ class SwitchTo:
         self._driver._registrar_pagina(nova)
         self._driver._pagina = nova
         self._driver._frame = None
+        self._driver._ultima_url_navegada = None
 
     def default_content(self):
         self._driver._frame = None
@@ -118,6 +119,8 @@ class PWDriver:
         self._pagina = pagina
         self._frame = None
         self._handles = {}
+        self._urls_por_pagina = {}
+        self._ultima_url_navegada = None
         self._proximo_handle = 0
         self._implicito = 0.0
         self._timeout_pagina = 30.0
@@ -142,6 +145,7 @@ class PWDriver:
         pagina.on("close", lambda p=pagina: self._ao_fechar_pagina(p))
 
     def _ao_fechar_pagina(self, pagina):
+        self._urls_por_pagina.pop(id(pagina), None)
         for handle, alvo in list(self._handles.items()):
             if alvo is pagina:
                 self._handles.pop(handle, None)
@@ -149,6 +153,9 @@ class PWDriver:
             vivas = [p for p in self._handles.values() if not p.is_closed()]
             self._pagina = vivas[0] if vivas else None
             self._frame = None
+            self._ultima_url_navegada = (
+                self._urls_por_pagina.get(id(self._pagina)) if self._pagina is not None else None
+            )
 
     def _ao_abrir_dialogo(self, dialogo):
         self.ultimo_dialogo = dialogo.message
@@ -170,6 +177,7 @@ class PWDriver:
             raise NoSuchWindowException(f"Janela inexistente: {handle}")
         self._pagina = pagina
         self._frame = None
+        self._ultima_url_navegada = self._urls_por_pagina.get(id(pagina))
         pagina.bring_to_front()
 
     def _resolver_frame(self, referencia):
@@ -277,9 +285,11 @@ class PWDriver:
     )
 
     def get(self, url, auto_garantir=True):
+        pagina_atual = self.page
         self._ultima_url_navegada = url
+        self._urls_por_pagina[id(pagina_atual)] = url
         try:
-            self.page.goto(
+            pagina_atual.goto(
                 url,
                 wait_until=self.espera_navegacao,
                 timeout=int(self._timeout_pagina * 1000),
@@ -331,7 +341,9 @@ class PWDriver:
 
     def garantir_carregamento(self, seletor_esperado=None, timeout_refresh=None, timeout_pos_refresh=10.0, log=True, url_alvo=None):
         """Monitora o carregamento inicial da página com barreira anti-travamento."""
-        target_url = url_alvo or getattr(self, '_ultima_url_navegada', None) or self.current_url
+        urls_map = getattr(self, '_urls_por_pagina', None) or {}
+        url_aba = urls_map.get(id(self.page))
+        target_url = url_alvo or url_aba or self.current_url
         is_processo_ou_tarefa = bool(target_url and ('/processo/' in target_url or '/tarefa/' in target_url))
         # Login/SSO sao telas leves, mas respondem por rede externa (Keycloak):
         is_login = bool(target_url and ('login.seam' in target_url or '/realms/' in target_url or '/auth/' in target_url))
@@ -472,6 +484,13 @@ class PWDriver:
         except Exception as e:
             if log:
                 logger.warning(f"[CARREGAMENTO] Falha ao tentar destravar: {e}")
+
+        if _em_sessao_invalida():
+            if log:
+                logger.warning(
+                    f"[CARREGAMENTO] ⚠️ Sessão inválida/acesso negado após destravamento ({self.current_url}) — abortando sem re-navegar."
+                )
+            return False
 
         if target_url and is_processo_ou_tarefa:
             curr = (self.current_url or '').lower()

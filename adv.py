@@ -50,7 +50,8 @@ Nada aqui abre driver nem faz login: quem chama é o x.py/pw.py.
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, List, Optional, Tuple
 
 from Fix import espera
 from Fix.core import (
@@ -73,18 +74,70 @@ URL_PESSOA_FISICA = 'https://pje.trt2.jus.br/pjekz/pessoa-fisica'
 # É a chamada que filtra pelo chip: `idEtiqueta` = id do chip.
 URL_CONSULTA_API = '/pje-administracao-api/api/consultaprocessosadm'
 
-# Recorte fixo da consulta (mesmo OJ da URL informada pelo Silas). Sem o
-# `idsOrgaosJulgadores` o PJe ignora o `idEtiqueta` e devolve a base inteira.
+# Reprocessamento de chips (GET calcula diff; POST aplica o array enviado).
+URL_REPROCESSAMENTO_ETIQUETAS_API = '/pje-etiquetas-api/api/reprocessamentoetiquetas/{id}'
+
+# Etiquetas (chips) efetivamente presentes no processo.
+URL_ETIQUETAS_PROCESSO_API = '/pje-etiquetas-api/api/processos/{id}/etiquetas'
+
+# Alteração de situação de parte/representante na autuação (PUT: 'A' | 'I' | 'S').
+URL_PARTES_SITUACAO_API = '/pje-comum-api/api/processos/id/{id}/partes/situacao'
+
+# Tarefa mais recente do processo (mesmo endpoint usado no P2B / movimentos_fluxo).
+URL_TAREFAS_PROCESSO_API = '/pje-comum-api/api/processos/id/{id}/tarefas'
+
+# Validação na OAB (POST consulta/valida; PUT grava inscrição específica).
+URL_VALIDACAO_OAB_API = '/pje-comum-api/api/pessoas/fisicas/{id}/validacaooab'
+URL_PESSOA_FISICA_CPF_API = '/pje-comum-api/api/pessoas/fisicas/cpf/{cpf}'
+
+# Recorte fixo da consulta (3ª Vara / OJ 187). Sem o `idsOrgaosJulgadores`
+# o PJe ignora o `idEtiqueta` e devolve a base inteira.
 ORGAO_JULGADOR_CONSULTA = 187
 
 # Aba /detalhe aberta direto pelo id interno devolvido pela consulta.
 URL_PROCESSO_DETALHE = 'https://pje.trt2.jus.br/pjekz/processo/{id}/detalhe'
 
-# Id da etiqueta (chip) "Advogado impedido de Atuar" — veio da URL de consulta
-# informada pelo Silas (idEtiqueta=918). Se o PJe mudar o id, ajustar aqui.
+# Id da etiqueta (chip) "Advogado impedido de Atuar".
 CHIP_ADVOGADO_IMPEDIDO_ID = 918
 
+# Tarefas / etiquetas consideradas "arquivado" (limpeza direta sem certidão/ato).
+TAREFAS_ARQUIVO = ('arquivo', 'arquivado', 'arquivados', 'arquivo definitivo')
+
 TAMANHO_PAGINA_API = 100
+MAX_WORKERS_REPROC = 6
+
+
+# =============================================================================
+# Exceção de sessão expirada (401)
+# =============================================================================
+
+class SessaoExpiradaError(Exception):
+    """Lançada quando qualquer chamada API retorna 401 (token expirado)."""
+
+
+def _eh_erro_401(res: Any) -> bool:
+    """True quando resposta do gateway indica HTTP 401 / token expirado."""
+    if not isinstance(res, dict) or res.get('ok'):
+        return False
+    err = res.get('error') or {}
+    if isinstance(err, dict):
+        if _inteiro(err.get('status'), 0) == 401:
+            return True
+        msg = str(err.get('message') or '').lower()
+    else:
+        msg = str(err).lower()
+    return (
+        'sjt-api-027' in msg
+        or 'token enviado está expirado' in msg
+        or 'token enviado esta expirado' in msg
+        or 'sessao_expirada_401' in msg
+    )
+
+
+def _checar_401(res: Any, contexto: str = '') -> None:
+    """Dispara `SessaoExpiradaError` imediatamente se a API devolveu 401."""
+    if _eh_erro_401(res):
+        raise SessaoExpiradaError(f'API retornou 401 ({contexto})')
 
 
 # =============================================================================
@@ -105,11 +158,65 @@ def _inteiro(valor: Any, padrao: int = 0) -> int:
 
 
 def _partir_oab(numero_oab: Any) -> tuple:
-    """'SP128341' / 'PE22616' / 'AP1551-A' -> ('SP', 128341)."""
-    m = re.match(r'\s*([A-Za-z]{2})\s*(\d+)', str(numero_oab or ''))
+    """'SP128341' / 'PE22616' / 'AP1551-A' / 'OAB/SP 128.341' -> ('SP', 128341)."""
+    texto = re.sub(r'[.\s]+', '', str(numero_oab or ''))
+    m = re.match(r'(?:OAB/?)?([A-Za-z]{2})[-/]?(\d+)', texto, re.IGNORECASE)
     if not m:
         return None, None
     return m.group(1).upper(), _inteiro(m.group(2), 0)
+
+
+def _digitos_oab(numero_oab: Any) -> str:
+    """Apenas os dígitos significativos (sem zeros à esquerda) de uma OAB."""
+    d = re.sub(r'\D', '', str(numero_oab or ''))
+    return d.lstrip('0') or d
+
+
+def _match_radio_oab(radios_info: List[Dict[str, Any]], oab_alvo: Any) -> Optional[Dict[str, Any]]:
+    """Matching puro de uma OAB contra os radios regulares/habilitados do dialog.
+
+    Ordem de aproximação:
+      1. Exato: mesma UF + mesmo número.
+      2. Aproximação de número: mesmo número (independente de UF/letra/sufixo)
+         ou sufixo/prefixo numérico com mesma UF.
+      3. Aproximação de letras: mesma UF quando só há 1 inscrição regular nessa UF.
+    """
+    if not oab_alvo or not radios_info:
+        return None
+    alvo_uf, alvo_num = _partir_oab(oab_alvo)
+    alvo_dig = _digitos_oab(oab_alvo)
+
+    # 1. Match exato (UF + número)
+    if alvo_uf and alvo_num:
+        for r in radios_info:
+            if r['uf'] == alvo_uf and r['num'] == alvo_num:
+                return r
+
+    # 2a. Mesmo número (sem zeros à esquerda), mesmo que UF/letra difira
+    if alvo_dig and len(alvo_dig) >= 3:
+        mesmos_num = [r for r in radios_info if r['dig'] == alvo_dig]
+        if mesmos_num:
+            if alvo_uf:
+                for r in mesmos_num:
+                    if r['uf'] == alvo_uf:
+                        return r
+            return mesmos_num[0]
+
+    # 2b. Número aproximado (contido ou difere por 1 dígito/sufixo) na mesma UF
+    if alvo_uf and alvo_dig and len(alvo_dig) >= 3:
+        for r in radios_info:
+            if r['uf'] == alvo_uf and r['dig'] and (
+                alvo_dig in r['dig'] or r['dig'] in alvo_dig
+            ):
+                return r
+
+    # 3. Mesma UF única entre as regulares
+    if alvo_uf:
+        da_uf = [r for r in radios_info if r['uf'] == alvo_uf]
+        if len(da_uf) == 1:
+            return da_uf[0]
+
+    return None
 
 
 def _representante_ativo(rep: Dict[str, Any]) -> bool:
@@ -239,6 +346,7 @@ def _consultar_processos(client: Any, chip_id: int, *, cpf: Optional[str] = None
         params['cpf'] = _somente_digitos(cpf)
 
     res = client.gateway_get(URL_CONSULTA_API, params=params, timeout=60)
+    _checar_401(res, f'consultaprocessosadm p{pagina}')
     if not res.get('ok'):
         logger.error('[CHIPADV][API] consulta chip %s p%d: %s',
                      chip_id, pagina, res.get('error'))
@@ -289,42 +397,63 @@ def iniciar_busca_processos_por_chip(client: Any, chip_id: int,
 
 
 # =============================================================================
-# 3. Partes → advogados
+# 3. Partes → advogados (por vínculo parte × representante)
 # =============================================================================
 
-def ler_advogados_do_processo(client: Any, id_processo: Any,
-                              com_inativas: bool = True) -> List[Dict[str, Any]]:
-    """Todos os advogados (representantes) do processo, pela API de partes.
+def _eh_situacao_regular_ou_ausente(situacao_oab: Any) -> bool:
+    """True para REGULAR ou ausente (que tende a se regularizar no tratamento)."""
+    s = str(situacao_oab or '').strip().upper()
+    return s in ('', 'REGULAR')
 
-    `com_inativas=True` inclui as partes/advogados inativos: é o que o PJe usa
-    para montar o chip "Advogado impedido" (parte inativa + cadastro inativo).
-    Sem esse parâmetro a API devolve só os ativos e o chip fica sem explicação.
 
-    Payload igual ao do hcalc-overlay-partes.js: dict com ATIVO/PASSIVO/
-    TERCEIROS, cada parte com `representantes` (nome, documento, numeroOab,
-    tipo).
+def _eh_advogado_com_pendencia_pje(adv: Dict[str, Any]) -> bool:
+    """True quando a API de partes não traz `situacaoOab == 'REGULAR'`."""
+    s = str(adv.get('situacao_oab') or '').strip().upper()
+    return s != 'REGULAR'
+
+
+def ler_vinculos_advogados(client: Any, id_processo: Any,
+                           com_inativas: bool = True) -> List[Dict[str, Any]]:
+    """Todos os vínculos (parte × advogado) do processo, pela API de partes.
+
+    Mantém `parte_id`, `parte_ativa`, `id_parte_rep` e `tem_outro_regular`
+    (outro advogado ativo na mesma parte com `situacaoOab` REGULAR ou ausente),
+    necessários tanto para o PUT `/partes/situacao` quanto para a regra do
+    Ramo 3 (certidão `anex_advdelete` vs GIGS + `ato_regadv`).
     """
-    partes = client.partes(str(id_processo), com_inativas=com_inativas) or {}
-    # A variante paginada (`dadosPaginados=true`) devolve {'resultado': {...}}.
+    try:
+        partes = client.partes(str(id_processo), com_inativas=com_inativas) or {}
+    except PermissionError as e:
+        raise SessaoExpiradaError(f'partes({id_processo}): {e}') from e
     if isinstance(partes, dict) and isinstance(partes.get('resultado'), dict):
         partes = partes['resultado']
     if (com_inativas and isinstance(partes, dict)
             and not any(partes.get(p) for p in ('ATIVO', 'PASSIVO', 'TERCEIROS'))):
-        # Se a variante com inativas não vier (ou vier só o envelope), cai
-        # para a consulta padrão — melhor ver os ativos do que nenhum.
-        partes = client.partes(str(id_processo)) or {}
+        try:
+            partes = client.partes(str(id_processo)) or {}
+        except PermissionError as e:
+            raise SessaoExpiradaError(f'partes({id_processo}): {e}') from e
         if isinstance(partes, dict) and isinstance(partes.get('resultado'), dict):
             partes = partes['resultado']
     if not isinstance(partes, dict):
         logger.warning('[CHIPADV][PARTES] Payload inesperado para o processo %s', id_processo)
         return []
 
-    advogados: List[Dict[str, Any]] = []
-    vistos = set()
+    vinculos: List[Dict[str, Any]] = []
     for polo in ('ATIVO', 'PASSIVO', 'TERCEIROS'):
         for parte in (partes.get(polo) or []):
             if not isinstance(parte, dict):
                 continue
+            parte_id = parte.get('id')
+            parte_id_pessoa = parte.get('idPessoa')
+            parte_nome = (parte.get('nome') or '').strip()
+            parte_ativa = _representante_ativo(parte)
+            parte_domicilio_inline = (
+                parte.get('domicilioEletronico') is True
+                or parte.get('possuiDomicilioEletronico') is True
+            )
+
+            reps_parte: List[Dict[str, Any]] = []
             for rep in (parte.get('representantes') or []):
                 if not isinstance(rep, dict):
                     continue
@@ -332,11 +461,17 @@ def ler_advogados_do_processo(client: Any, id_processo: Any,
                 oab = rep.get('numeroOab') or ''
                 if 'ADVOGADO' not in tipo and 'OAB' not in tipo and not oab:
                     continue
-                cpf = _somente_digitos(rep.get('documento'))
-                if not cpf or cpf in vistos:
+                cpf = _somente_digitos(rep.get('documento') or rep.get('cpf'))
+                if not cpf:
                     continue
-                vistos.add(cpf)
-                advogados.append({
+                reps_parte.append({
+                    'id_parte_rep': rep.get('id'),
+                    'parte_id': parte_id,
+                    'parte_id_pessoa': parte_id_pessoa,
+                    'parte_domicilio_inline': parte_domicilio_inline,
+                    'parte': parte_nome,
+                    'parte_ativa': parte_ativa,
+                    'polo': polo,
                     'nome': (rep.get('nome') or '').strip(),
                     'cpf': cpf,
                     'oab': oab,
@@ -344,41 +479,296 @@ def ler_advogados_do_processo(client: Any, id_processo: Any,
                     'status': rep.get('status') or '',
                     'situacao': rep.get('situacao') or '',
                     'ativo': _representante_ativo(rep),
-                    # Situação da inscrição na OAB vinda da API de partes:
-                    # 'REGULAR', 'CANCELADO', 'SUSPENSO'… ou ausente (o PJe
-                    # omite o campo quando não encontra a inscrição).
-                    'situacao_oab': rep.get('situacaoOab') or '',
+                    'situacao_oab': (rep.get('situacaoOab') or '').strip().upper(),
                     'tipo': tipo,
-                    'parte': (parte.get('nome') or '').strip(),
-                    'polo': polo,
                 })
+
+            # Para cada representante da parte, marca se há OUTRO advogado ativo
+            # na mesma parte com situacaoOab REGULAR ou ausente.
+            for r in reps_parte:
+                r['tem_outro_regular'] = any(
+                    outro['cpf'] != r['cpf']
+                    and outro['ativo']
+                    and _eh_situacao_regular_ou_ausente(outro['situacao_oab'])
+                    for outro in reps_parte
+                )
+                vinculos.append(r)
+
+    return vinculos
+
+
+def ler_advogados_do_processo(client: Any, id_processo: Any,
+                              com_inativas: bool = True) -> List[Dict[str, Any]]:
+    """Lista deduplicada por CPF dos advogados do processo (compatibilidade)."""
+    vinculos = ler_vinculos_advogados(client, id_processo, com_inativas=com_inativas)
+    advogados: List[Dict[str, Any]] = []
+    vistos = set()
+    for v in vinculos:
+        if v['cpf'] in vistos:
+            continue
+        vistos.add(v['cpf'])
+        advogados.append(v)
     return advogados
 
 
 # =============================================================================
-# 4. Qual advogado do processo entra no laço
+# 4. Resolução de OAB alvo (timeline) e wrappers de atos/juntada
 # =============================================================================
 
-def _filtrar_advogado_do_chip(advogados: List[Dict[str, Any]],
-                              processo: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Escolhe o advogado que o laço vai considerar neste processo.
+_UFS_VALIDAS = {
+    'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS',
+    'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC',
+    'SP', 'SE', 'TO',
+}
 
-    A leitura já traz os inativos (comInativas=true), mas a regra do laço
-    ainda não foi fechada — por ora fica o primeiro ATIVO (para não abrir
-    validação de um inativo, que nem aparece no painel do /detalhe).
+_RE_OAB_NO_TEXTO = re.compile(
+    r'\bOAB\s*[/:\-\s]*(?:([A-Z]{2})\s*[/:\-\s]*)?(?:n[º°o.]*\s*)?(\d{1,3}(?:\.\d{3})+|\d{3,7})(?:\s*[-/]\s*([A-Z]{1,2}))?',
+    re.IGNORECASE,
+)
+
+_RE_OAB_NUM_UF = re.compile(
+    r'\bOAB\s*(?:n[º°o.]*\s*)?(\d{1,3}(?:\.\d{3})+|\d{3,7})\s*[/\-]\s*([A-Z]{2})\b',
+    re.IGNORECASE,
+)
+
+_TIPOS_PECA_PRIORITARIOS = (
+    'peticao', 'manifestacao', 'procuracao', 'substabelecimento',
+    'contestacao', 'recurso', 'contrarrazoes', 'impugnacao', 'embargos',
+    'habilitacao', 'replica',
+)
+
+
+def _ler_texto_documento_api(client: Any, id_processo: Any, id_doc: Any) -> str:
+    """Baixa o conteúdo de um documento da timeline via API e devolve texto plano."""
+    import base64
+
+    sess = getattr(client, 'sess', None)
+    base_url = getattr(client, 'base_url', '') or 'https://pje.trt2.jus.br'
+    if not base_url.startswith('http'):
+        base_url = f'https://{base_url}'
+    if sess is None:
+        return ''
+
+    url = (f'{base_url}/pje-comum-api/api/processos/id/{id_processo}'
+           f'/documentos/id/{id_doc}/conteudo')
+    try:
+        r = sess.get(url, params={'incluirAssinatura': 'false', 'grau': '1'}, timeout=25)
+        if r.status_code != 200:
+            return ''
+        raw = r.content or b''
+    except Exception:
+        return ''
+
+    # Pode vir PDF direto ou JSON com {conteudoBase64} ou HTML/texto
+    if raw.startswith(b'%PDF'):
+        try:
+            from Mandado.apoio_fluxos import _extrair_texto_pdf_bytes
+            return _extrair_texto_pdf_bytes(raw, log=False) or ''
+        except Exception:
+            return ''
+
+    ctype = (r.headers.get('content-type') or '').lower()
+    if 'json' in ctype or raw.lstrip().startswith(b'{'):
+        try:
+            data = r.json()
+            b64 = data.get('conteudoBase64') or data.get('conteudo') or ''
+            if isinstance(b64, str) and b64:
+                dec = base64.b64decode(b64)
+                if dec.startswith(b'%PDF'):
+                    from Mandado.apoio_fluxos import _extrair_texto_pdf_bytes
+                    return _extrair_texto_pdf_bytes(dec, log=False) or ''
+                txt = dec.decode('utf-8', errors='ignore')
+                return re.sub(r'<[^>]+>', ' ', txt)
+        except Exception:
+            return ''
+
+    txt = raw.decode('utf-8', errors='ignore')
+    return re.sub(r'<[^>]+>', ' ', txt)
+
+
+def _extrair_oabs_proximas_ao_nome(texto: str, nome_adv: str, janela: int = 260) -> List[str]:
+    """Extrai OABs mencionadas próximas ao nome do advogado no texto da peça."""
+    if not texto or not nome_adv:
+        return []
+    texto_norm = _texto_normalizado(texto)
+    nome_norm = _texto_normalizado(nome_adv)
+    partes_nome = [p for p in nome_norm.split() if len(p) > 2]
+    if not partes_nome:
+        return []
+
+    alvos_busca = [nome_norm]
+    if len(partes_nome) >= 2:
+        alvos_busca.append(f'{partes_nome[0]} {partes_nome[-1]}')
+        alvos_busca.append(partes_nome[-1])
+
+    posicoes: List[int] = []
+    for alvo in alvos_busca:
+        idx = 0
+        while (idx := texto_norm.find(alvo, idx)) != -1:
+            posicoes.append(idx)
+            idx += len(alvo)
+        if posicoes:
+            break
+
+    if not posicoes:
+        return []
+
+    oabs: List[str] = []
+    vistos = set()
+    for pos in posicoes:
+        ini = max(0, pos - janela)
+        fim = min(len(texto), pos + len(nome_norm) + janela)
+        trecho = texto[ini:fim]
+
+        for m in _RE_OAB_NUM_UF.finditer(trecho):
+            num = re.sub(r'\D', '', m.group(1))
+            uf = m.group(2).upper()
+            if uf in _UFS_VALIDAS and num:
+                chave = f'{uf}{num}'
+                if chave not in vistos:
+                    vistos.add(chave)
+                    oabs.append(chave)
+
+        for m in _RE_OAB_NO_TEXTO.finditer(trecho):
+            uf1 = (m.group(1) or '').upper()
+            num = re.sub(r'\D', '', m.group(2) or '')
+            uf2 = (m.group(3) or '').upper()
+            uf = uf1 if uf1 in _UFS_VALIDAS else (uf2 if uf2 in _UFS_VALIDAS else '')
+            if num:
+                chave = f'{uf}{num}' if uf else num
+                if chave not in vistos:
+                    vistos.add(chave)
+                    oabs.append(chave)
+    return oabs
+
+
+def resolver_oab_alvo(client: Any, advogado: Dict[str, Any],
+                      id_processo: Any = None,
+                      max_docs: int = 6) -> Optional[str]:
+    """Passo 2 da seleção de OAB — busca na timeline as petições da parte alvo
+    e extrai a OAB usada pelo advogado na peça.
+
+    Chamada sob demanda apenas quando o Passo 1 (matching puro com a OAB do
+    cadastro) não casou no dialog da OAB e o caso NÃO é inativo/arquivado.
     """
-    if not advogados:
+    if not id_processo or not advogado:
+        return advogado.get('oab') if advogado else None
+
+    try:
+        timeline = client.timeline(str(id_processo), buscarDocumentos=True, buscarMovimentos=False) or []
+    except Exception as e:
+        logger.warning('[CHIPADV][OAB_TL] Falha ao ler timeline de %s: %s', id_processo, e)
         return None
-    ativos = [a for a in advogados if a.get('ativo', True)]
-    escolhido = (ativos or advogados)[0]
-    numero = processo.get('numeroProcesso') or processo.get('numero') or processo.get('id')
-    logger.warning(
-        '[CHIPADV][PLACEHOLDER] Regra do laço ainda não definida — usando o '
-        'primeiro advogado ativo do processo %s: %s (CPF %s, inativo=%s)',
-        numero, escolhido.get('nome'), escolhido.get('cpf'),
-        not escolhido.get('ativo', True),
-    )
-    return escolhido
+
+    polo_alvo = str(advogado.get('polo') or '').strip().upper()
+    id_pessoa = str(advogado.get('id_pessoa') or '')
+    nome_adv = advogado.get('nome') or ''
+    nome_adv_norm = _texto_normalizado(nome_adv)
+
+    # Filtra peças externas (usuarioInterno == False) e ordena por relevância:
+    # 1º assinadas/protocoladas pelo próprio advogado
+    # 2º peças do mesmo polo (petição/manifestação/procuração/recurso...)
+    candidatos_doc: List[Tuple[int, Dict[str, Any]]] = []
+    for doc in timeline:
+        if not isinstance(doc, dict):
+            continue
+        if doc.get('usuarioInterno') is True:
+            continue
+        id_doc = doc.get('id') or doc.get('idUnicoDocumento')
+        if not id_doc:
+            continue
+
+        polo_doc = str(doc.get('tipoPolo') or '').strip().upper()
+        if polo_alvo and polo_doc and polo_doc != polo_alvo:
+            continue
+
+        tipo_norm = _texto_normalizado(doc.get('tipo') or '')
+        titulo_norm = _texto_normalizado(doc.get('titulo') or '')
+        sig_norm = _texto_normalizado(doc.get('nomeSignatario') or '')
+        resp_norm = _texto_normalizado(doc.get('nomeResponsavel') or '')
+
+        score = 0
+        if id_pessoa and (
+            str(doc.get('idSignatario') or '') == id_pessoa
+            or str(doc.get('idUsuario') or '') == id_pessoa
+        ):
+            score += 100
+        elif nome_adv_norm and (nome_adv_norm in sig_norm or nome_adv_norm in resp_norm):
+            score += 80
+        if any(k in tipo_norm or k in titulo_norm for k in _TIPOS_PECA_PRIORITARIOS):
+            score += 20
+        if polo_alvo and polo_doc == polo_alvo:
+            score += 10
+
+        if score > 0:
+            candidatos_doc.append((score, doc))
+
+    candidatos_doc.sort(key=lambda x: x[0], reverse=True)
+
+    for _, doc in candidatos_doc[:max_docs]:
+        id_doc = doc.get('id') or doc.get('idUnicoDocumento')
+        texto = _ler_texto_documento_api(client, id_processo, id_doc)
+        if not texto:
+            continue
+        oabs = _extrair_oabs_proximas_ao_nome(texto, nome_adv)
+        if oabs:
+            logger.info('[CHIPADV][OAB_TL] OAB(s) encontrada(s) na peça %s (%s) para %s: %s',
+                        id_doc, doc.get('tipo') or doc.get('titulo'), nome_adv, oabs)
+            return oabs[0]
+
+    logger.info('[CHIPADV][OAB_TL] Nenhuma OAB encontrada na timeline de %s para %s',
+                id_processo, nome_adv)
+    return None
+
+
+def anex_advdelete(driver: Any, processo_info: Dict[str, Any],
+                   advogado_alvo: Dict[str, Any]) -> bool:
+    """Junta a certidão `advdelete` preenchendo `--` com empresa/advogado/CPF.
+
+    Chamada no Ramo 3 quando o advogado apagado era ATIVO em parte ATIVA e a
+    mesma parte possui outro advogado regular/ausente.
+    """
+    from atos.wrappers_anex import anex_advdelete as _anex_advdelete_wrapper
+
+    vinculos = list(processo_info.get('vinculos_removidos') or [])
+    if not vinculos and advogado_alvo:
+        vinculos = [advogado_alvo]
+    numero = str(processo_info.get('numero') or processo_info.get('id') or '')
+    return bool(_anex_advdelete_wrapper(
+        driver,
+        numero_processo=numero,
+        vinculos=vinculos,
+        fechar_aba_apos=False,
+    ))
+
+
+def ato_regadv(driver: Any, processo_info: Dict[str, Any],
+               advogado_alvo: Dict[str, Any], **kwargs: Any) -> bool:
+    """Executa o despacho `regadv` preenchendo `--` com empresa/advogado/CPF.
+
+    Chamada no Ramo 3 sempre que o advogado apagado era ATIVO em parte ATIVA e a
+    parte ficou sem outro advogado regular/ausente:
+      - com domicílio eletrônico → seleciona apenas a parte-alvo (`destinatario='alvo'`)
+      - sem domicílio eletrônico → `1//xs dec adv` criado antes + `ato_regadv`
+    """
+    from atos.wrappers_ato import ato_regadv as _ato_regadv_wrapper
+
+    vinculos = list(processo_info.get('vinculos_removidos') or [])
+    if not vinculos and advogado_alvo:
+        vinculos = [advogado_alvo]
+    sem_outro = list(processo_info.get('vinculos_sem_outro') or vinculos)
+    alvos = []
+    for v in sem_outro:
+        if isinstance(v, dict):
+            parte = (v.get('parte') or '').strip()
+            if parte and parte not in alvos:
+                alvos.append(parte)
+    if alvos and 'destinatarios_alvo' not in kwargs:
+        kwargs['destinatarios_alvo'] = alvos
+    res = _ato_regadv_wrapper(driver, vinculos=vinculos, **kwargs)
+    if isinstance(res, tuple):
+        return bool(res[0])
+    return bool(res)
 
 
 # =============================================================================
@@ -405,83 +795,108 @@ def _linhas_tabela_oab(driver: Any) -> List[List[str]]:
     return [l for l in (linhas or []) if isinstance(l, list) and l]
 
 
-def _tratar_dialog_oab(driver: Any, oab_alvo: Any = None) -> str:
-    """Trata o dialog "Validar na OAB".
+def _coletar_radios_regulares(driver: Any, radios: List[Any]) -> List[Dict[str, Any]]:
+    """Extrai os radios habilitados/regulares do dialog OAB com UF, número e dígitos."""
+    info: List[Dict[str, Any]] = []
+    for radio in radios:
+        try:
+            if not radio.is_enabled():
+                continue
+        except Exception:
+            pass
+        try:
+            rotulo = (radio.get_attribute('aria-label') or '').strip()
+        except Exception:
+            rotulo = ''
+        uf, num = _partir_oab(rotulo)
+        info.append({
+            'radio': radio,
+            'rotulo': rotulo,
+            'uf': uf,
+            'num': num,
+            'dig': _digitos_oab(rotulo),
+        })
+    return info
 
-    `oab_alvo` (ex.: 'PE22616'/'AP1551') é a inscrição que o processo usa:
-    quando informada, a seleção prioriza essa linha (UF + número), e não
-    "SP ou a primeira" — o que escolheria a OAB errada num advogado com
-    várias inscrições.
+
+def _tratar_dialog_oab(driver: Any, oab_alvo: Any = None,
+                       buscar_oab_timeline: Optional[Any] = None) -> str:
+    """Trata o dialog "Validar na OAB" na ordem exata de prioridade:
+
+      1. Matching puro (exato UF+número → aproximação de número/letras) com
+         `oab_alvo` (OAB do cadastro).
+      2. Busca via timeline (`buscar_oab_timeline`, quando fornecida — apenas
+         para advogado ativo em processo não arquivado) e matching com a OAB
+         encontrada nas petições da parte alvo.
+      3. Primeira regular disponível, preferindo SP se existir e for regular.
 
     Devolve:
-      'ok'       — inscrição selecionada e gravada (ou validação direta, sem dialog)
-      'suspenso' — dialog SEM radio selecionável: a tabela traz Situação
-                   "Suspenso" → cadastro suspenso na OAB (não é bug, é o dado)
+      'ok'       — inscrição regular selecionada e gravada (ou validação direta)
+      'suspenso' — dialog SEM radio selecionável (tabela traz Suspenso /
+                   Cancelado / Impedido / Licenciado)
       'falha'    — dialog presente mas não foi possível concluir
     """
     dialogo = esperar_elemento(driver, 'mat-dialog-container pje-modal-atualizar-oab',
                                timeout=15)
     if dialogo is None:
-        # Sem múltiplas inscrições o PJe valida direto, sem dialog.
         logger.info('[CHIPADV][VALIDAR] Sem dialog de múltiplas inscrições — validação direta')
         return 'ok'
 
     radios = espera.elementos(driver, 'mat-dialog-container input[type="radio"]', teto=5)
-    if not radios:
-        # Sem radio = nenhuma inscrição selecionável. O PJe lista as inscrições
-        # numa tabela e marca a Situação; "Suspenso" é o caso que interessa.
+    radios_info = _coletar_radios_regulares(driver, radios) if radios else []
+    if not radios_info:
         linhas = _linhas_tabela_oab(driver)
         situacoes = [l[3] for l in linhas if len(l) > 3]
         resumo = '; '.join(' | '.join(l) for l in linhas) or 'tabela vazia'
-        if any('suspens' in _texto_normalizado(s) for s in situacoes):
-            logger.error('[CHIPADV][VALIDAR] CADASTRO SUSPENSO na OAB — %s', resumo)
+        if any(
+            k in _texto_normalizado(s)
+            for s in situacoes
+            for k in ('suspens', 'cancel', 'imped', 'licenc', 'exclu')
+        ):
+            logger.error('[CHIPADV][VALIDAR] CADASTRO IMPEDIDO/SUSPENSO na OAB — %s', resumo)
             return 'suspenso'
         logger.error('[CHIPADV][VALIDAR] Dialog OAB sem inscrição selecionável — %s', resumo)
         return 'falha'
 
-    alvo_uf, alvo_num = _partir_oab(oab_alvo)
+    escolhido_info = None
 
-    escolhido = None
-    if alvo_uf and alvo_num:
-        for radio in radios:
-            try:
-                if not radio.is_enabled():
-                    continue
-            except Exception:
-                pass
-            try:
-                rotulo = (radio.get_attribute('aria-label') or '').strip()
-            except Exception:
-                rotulo = ''
-            rot_uf, rot_num = _partir_oab(rotulo)
-            if rot_uf == alvo_uf and rot_num == alvo_num:
-                escolhido = radio
-                logger.info('[CHIPADV][VALIDAR] Inscrição do processo selecionada: %s',
-                            rotulo)
-                break
-    if escolhido is None:
-        for radio in radios:
-            try:
-                if not radio.is_enabled():
-                    continue
-            except Exception:
-                pass
-            try:
-                rotulo = (radio.get_attribute('aria-label') or '').strip()
-            except Exception:
-                rotulo = ''
-            if rotulo.upper().startswith('SP'):
-                escolhido = radio
-                logger.info('[CHIPADV][VALIDAR] Inscrição SP selecionada: %s', rotulo)
-                break
-    if escolhido is None:
-        escolhido = radios[0]
+    # 1. Matching puro com a OAB do cadastro (UF+número / aproximação)
+    if oab_alvo:
+        escolhido_info = _match_radio_oab(radios_info, oab_alvo)
+        if escolhido_info:
+            logger.info('[CHIPADV][VALIDAR] [1-matching] Inscrição selecionada (%s -> %s)',
+                        oab_alvo, escolhido_info['rotulo'])
+
+    # 2. Busca via timeline (somente se Passo 1 não casou e callback foi fornecida)
+    if escolhido_info is None and callable(buscar_oab_timeline):
         try:
-            rotulo = (escolhido.get_attribute('aria-label') or '').strip()
-        except Exception:
-            rotulo = ''
-        logger.info('[CHIPADV][VALIDAR] Nenhuma inscrição do processo/SP — '
-                    'usando a primeira: %s', rotulo)
+            oab_tl = buscar_oab_timeline()
+        except Exception as e:
+            logger.warning('[CHIPADV][VALIDAR] [2-timeline] Erro ao buscar OAB na timeline: %s', e)
+            oab_tl = None
+        if oab_tl:
+            escolhido_info = _match_radio_oab(radios_info, oab_tl)
+            if escolhido_info:
+                logger.info('[CHIPADV][VALIDAR] [2-timeline] Inscrição selecionada (%s -> %s)',
+                            oab_tl, escolhido_info['rotulo'])
+            else:
+                logger.info('[CHIPADV][VALIDAR] [2-timeline] OAB da peça (%s) não está regular/selecionável — seguindo para passo 3',
+                            oab_tl)
+
+    # 3. Primeira regular disponível, preferindo SP se existir e for regular
+    if escolhido_info is None:
+        for r in radios_info:
+            if r['uf'] == 'SP' or r['rotulo'].upper().startswith('SP'):
+                escolhido_info = r
+                logger.info('[CHIPADV][VALIDAR] [3-SP] Inscrição SP regular selecionada: %s',
+                            r['rotulo'])
+                break
+    if escolhido_info is None:
+        escolhido_info = radios_info[0]
+        logger.info('[CHIPADV][VALIDAR] [3-fallback] Primeira inscrição regular selecionada: %s',
+                    escolhido_info['rotulo'])
+
+    escolhido = escolhido_info['radio']
 
     # Angular Material: o clique efetivo é no label do mat-radio-button.
     alvo = escolhido
@@ -511,12 +926,179 @@ def _tratar_dialog_oab(driver: Any, oab_alvo: Any = None) -> str:
     return 'ok'
 
 
-def validar_cadastro(driver: Any, cpf: str, oab_alvo: Any = None) -> str:
+def _obter_id_pessoa_por_cpf(client: Any, cpf: str) -> Optional[int]:
+    """Busca idPessoa via GET /pje-comum-api/api/pessoas/fisicas/cpf/{cpf}."""
+    cpf_dig = _somente_digitos(cpf)
+    if len(cpf_dig) != 11:
+        return None
+    res = client.gateway_get(URL_PESSOA_FISICA_CPF_API.format(cpf=cpf_dig), timeout=15)
+    _checar_401(res, f'cpf/{cpf_dig}')
+    if not res.get('ok'):
+        return None
+    dados = res.get('data')
+    if isinstance(dados, dict) and dados.get('id'):
+        return _inteiro(dados.get('id'), 0) or None
+    return None
+
+
+def _inscricao_oab_regular(item: Dict[str, Any]) -> bool:
+    """True quando a inscrição retornada em `dadosOab` está REGULAR na OAB."""
+    nome_sit = str(item.get('nomeSituacao') or '').strip().upper()
+    if nome_sit:
+        return nome_sit == 'REGULAR'
+    return _inteiro(item.get('codigoSituacao'), 0) == 1
+
+
+def validar_cadastro_api(client: Any, advogado: Dict[str, Any],
+                         *,
+                         buscar_oab_timeline: Optional[Any] = None) -> str:
+    """Valida e atualiza a inscrição na OAB 100% via API (sem abrir /pessoa-fisica).
+
+    Fluxo:
+      1. POST /pje-comum-api/api/pessoas/fisicas/{idPessoa}/validacaooab?especializacao=Advogado
+      2. Inspeciona `dadosOab` vindo direto da OAB:
+         - Se NÃO há nenhuma inscrição REGULAR → retorna 'suspenso' imediatamente
+           (sem perder tempo com matching/timeline/UI).
+         - Se há inscrição(ões) REGULAR(ES):
+             * Se `multiplasOab` é False e o POST já validou → retorna 'ok'.
+             * Caso contrário, escolhe a inscrição regular na ordem exata:
+                 1. Matching puro (UF+número / aproximação) com a OAB do cadastro
+                 2. Busca via timeline (`buscar_oab_timeline`, quando ativo e não arquivado)
+                 3. Primeira regular disponível, preferindo SP
+               e grava via PUT /validacaooab/{idInscricao}?especializacao=Advogado.
+    Devolve 'ok' | 'suspenso' | 'falha'.
+    """
+    cpf = _somente_digitos(advogado.get('cpf'))
+    id_pessoa = advogado.get('id_pessoa') or _obter_id_pessoa_por_cpf(client, cpf)
+    if not id_pessoa:
+        logger.warning('[CHIPADV][OAB_API] Sem idPessoa para CPF %s', cpf)
+        return 'falha'
+
+    path_post = URL_VALIDACAO_OAB_API.format(id=id_pessoa)
+    res_post = client.gateway_post(
+        path_post,
+        params={'especializacao': 'Advogado'},
+        json_data={},
+        timeout=25,
+    )
+    _checar_401(res_post, f'POST validacaooab/{id_pessoa}')
+    if not res_post.get('ok'):
+        logger.warning('[CHIPADV][OAB_API] POST validacaooab falhou (idPessoa=%s, CPF=%s): %s',
+                       id_pessoa, cpf, res_post.get('error'))
+        return 'falha'
+
+    dados = res_post.get('data')
+    if not isinstance(dados, dict):
+        logger.warning('[CHIPADV][OAB_API] Resposta inesperada (idPessoa=%s): %r',
+                       id_pessoa, dados)
+        return 'falha'
+
+    dados_oab = [d for d in (dados.get('dadosOab') or []) if isinstance(d, dict)]
+    if not dados_oab:
+        logger.warning('[CHIPADV][OAB_API] dadosOab vazio (idPessoa=%s, CPF=%s)', id_pessoa, cpf)
+        return 'falha'
+
+    regulares = [d for d in dados_oab if _inscricao_oab_regular(d)]
+    if not regulares:
+        situacoes = [
+            f"{d.get('uf', '')}{d.get('numInscricao', '')}:{d.get('nomeSituacao', '')}"
+            for d in dados_oab
+        ]
+        logger.info('[CHIPADV][OAB_API] Nenhuma inscrição REGULAR na OAB (CPF %s) — %s → Ramo 3',
+                    cpf, ', '.join(situacoes))
+        return 'suspenso'
+
+    # Se não há múltiplas OABs e o POST já validou a única regular, está pronto!
+    pessoa_oab = dados.get('pessoaOab') or {}
+    if not dados.get('multiplasOab') and len(regulares) == 1 and pessoa_oab.get('validado'):
+        reg = regulares[0]
+        logger.info('[CHIPADV][OAB_API] Validação direta OK (CPF %s → %s%s)',
+                    cpf, reg.get('uf', ''), reg.get('numInscricao', ''))
+        return 'ok'
+
+    # Monta estrutura compatível com `_match_radio_oab` só com as REGULARES
+    candidatas: List[Dict[str, Any]] = []
+    for d in regulares:
+        uf = str(d.get('uf') or '').strip().upper()
+        num_str = str(d.get('numInscricao') or '').strip()
+        rotulo = f'{uf}{num_str}'
+        candidatas.append({
+            'item': d,
+            'id': d.get('id'),
+            'rotulo': rotulo,
+            'uf': uf,
+            'num': _inteiro(re.sub(r'\D', '', num_str), 0),
+            'dig': _digitos_oab(num_str),
+        })
+
+    escolhida = None
+    oab_cadastro = advogado.get('oab')
+
+    # 1. Matching puro com a OAB do cadastro
+    if oab_cadastro:
+        escolhida = _match_radio_oab(candidatas, oab_cadastro)
+        if escolhida:
+            logger.info('[CHIPADV][OAB_API] [1-matching] %s -> %s (CPF %s)',
+                        oab_cadastro, escolhida['rotulo'], cpf)
+
+    # 2. Busca via timeline (somente se Passo 1 não casou e ativo + não arquivado)
+    if escolhida is None and callable(buscar_oab_timeline):
+        try:
+            oab_tl = buscar_oab_timeline()
+        except Exception as e:
+            logger.warning('[CHIPADV][OAB_API] [2-timeline] Erro: %s', e)
+            oab_tl = None
+        if oab_tl:
+            escolhida = _match_radio_oab(candidatas, oab_tl)
+            if escolhida:
+                logger.info('[CHIPADV][OAB_API] [2-timeline] %s -> %s (CPF %s)',
+                            oab_tl, escolhida['rotulo'], cpf)
+
+    # 3. Primeira regular disponível, preferindo SP
+    if escolhida is None:
+        for c in candidatas:
+            if c['uf'] == 'SP':
+                escolhida = c
+                logger.info('[CHIPADV][OAB_API] [3-SP] %s selecionada (CPF %s)',
+                            c['rotulo'], cpf)
+                break
+    if escolhida is None:
+        escolhida = candidatas[0]
+        logger.info('[CHIPADV][OAB_API] [3-fallback] %s selecionada (CPF %s)',
+                    escolhida['rotulo'], cpf)
+
+    id_inscricao = escolhida.get('id')
+    if not id_inscricao:
+        logger.warning('[CHIPADV][OAB_API] Inscrição escolhida sem id (CPF %s): %r', cpf, escolhida)
+        return 'falha'
+
+    path_put = f'{path_post}/{id_inscricao}'
+    res_put = client.request_gateway(
+        'PUT',
+        path_put,
+        params={'especializacao': 'Advogado'},
+        json_data={},
+        timeout=25,
+    )
+    _checar_401(res_put, f'PUT validacaooab/{id_pessoa}/{id_inscricao}')
+    if not res_put.get('ok'):
+        logger.warning('[CHIPADV][OAB_API] PUT validacaooab/%s falhou (CPF %s): %s',
+                       id_inscricao, cpf, res_put.get('error'))
+        return 'falha'
+
+    logger.info('[CHIPADV][OAB_API] Inscrição %s gravada via API (CPF %s)',
+                escolhida['rotulo'], cpf)
+    return 'ok'
+
+
+def validar_cadastro(driver: Any, cpf: str, oab_alvo: Any = None,
+                     buscar_oab_timeline: Optional[Any] = None) -> str:
     """Passo 6 — valida o cadastro do advogado na OAB.
 
-    Abre /pjekz/pessoa-fisica em ABA NOVA (o passo K manda fechar esta aba),
-    pesquisa o CPF, entra no cadastro pelo lápis, abre a aba "Advogado",
-    clica "Validar na OAB", escolhe a inscrição SP (ou a primeira) e grava.
+    Abre /pjekz/pessoa-fisica em ABA NOVA, pesquisa o CPF, entra no cadastro
+    pelo lápis, abre a aba "Advogado", clica "Validar na OAB", escolhe a
+    inscrição regular (1. matching puro → 2. timeline → 3. SP/primeira regular)
+    e grava.
 
     Devolve 'ok' | 'suspenso' | 'falha' (ver `_tratar_dialog_oab`).
     """
@@ -571,7 +1153,9 @@ def validar_cadastro(driver: Any, cpf: str, oab_alvo: Any = None) -> str:
             return 'falha'
         safe_click_no_scroll(driver, botao)
 
-        status = _tratar_dialog_oab(driver, oab_alvo=oab_alvo)
+        status = _tratar_dialog_oab(
+            driver, oab_alvo=oab_alvo, buscar_oab_timeline=buscar_oab_timeline
+        )
         if status == 'ok':
             logger.info('[CHIPADV][VALIDAR] Cadastro validado na OAB — CPF %s', cpf)
         return status
@@ -583,93 +1167,650 @@ def validar_cadastro(driver: Any, cpf: str, oab_alvo: Any = None) -> str:
 
 
 # =============================================================================
-# 7. Ação por processo do advogado (GIGS "Advogado suspenso" / reprocessar chips)
+# 7. Ações via API (chips, tarefa/arquivo, inativação de parte) e /detalhe
 # =============================================================================
 
-# Chip que o dialog de reprocessamento lista em "Chips a serem excluídos".
+# Chip que o reprocessamento lista para exclusão.
 CHIP_TEXTO_IMPEDIDO = 'Advogado Impedido de Atuar'
 
-# Observação da atividade GIGS criada no /detalhe (passo 7 do fluxo).
-OBS_GIGS_ADV_SUSPENSO = 'Advogado suspenso'
+# GIGS criado no Ramo 3 quando a parte ativa fica sem outro advogado regular
+# e não possui domicílio eletrônico (sem opção na lista de destinatários do ato):
+# → prazo '1', observação 'xs dec adv'
+PRAZO_GIGS_DEC_ADV = '1'
+OBS_GIGS_DEC_ADV = 'xs dec adv'
 
 
-def _reprocessar_chips_do_processo(driver: Any) -> bool:
-    """Aciona "Reprocessar chips do processo" e FINALIZA o dialog.
+def _eh_erro_transitorio_gateway(res: Any) -> bool:
+    """True para timeout de rede ou erro HTTP transitório (500/502/503/504/429)."""
+    if not isinstance(res, dict) or res.get('ok'):
+        return False
+    err = res.get('error')
+    if not isinstance(err, dict):
+        return False
+    status = _inteiro(err.get('status'), 0)
+    if status in (429, 500, 502, 503, 504):
+        return True
+    tipo = str(err.get('type') or '').lower()
+    msg = str(err.get('message') or '').lower()
+    return any(k in tipo or k in msg for k in ('timeout', 'readtimeout', 'connecttimeout', 'connection', '502', '503', '504'))
 
-    O clique no menu só abre o dialog "Chips a serem excluídos"; sem o Salvar
-    ele fica aberto e a função nunca termina (era o defeito relatado pelo
-    Silas em 11/11/2026). Sequência completa:
 
-      1. menu do processo → "Reprocessar chips do processo"
-      2. espera `#matChipAccordionExcluir` com o chip "Advogado Impedido de
-         Atuar" na lista a excluir
-      3. clica "Salvar" no dialog e espera o dialog fechar
+def _esperar_retry_api(segundos: float) -> None:
+    """Espera curta para backoff de retry HTTP sem usar time.sleep."""
+    import threading
+    threading.Event().wait(segundos)
+
+
+def _listar_etiquetas_processo_api(client: Any, id_processo: Any) -> Optional[List[Dict[str, Any]]]:
+    """GET rápido /pje-etiquetas-api/api/processos/{id}/etiquetas (não recalcula regras).
+
+    Devolve lista normalizada com `idEtiqueta`, `idEtiquetaInstancia`, `idProcessoEtiqueta`
+    e `nome` (usada para checar arquivamento, presença do chip e exclusão direta via POST).
     """
-    menu = esperar_elemento(driver, 'button[aria-label="Menu do processo"]', timeout=15)
-    if menu is None:
-        logger.warning('[CHIPADV][CHIPS] Menu do processo não encontrado')
-        return False
-    safe_click_no_scroll(driver, menu)
+    path = URL_ETIQUETAS_PROCESSO_API.format(id=id_processo)
+    res = client.gateway_get(path, timeout=20)
+    _checar_401(res, f'GET processos/{id_processo}/etiquetas')
+    if not res.get('ok'):
+        return None
+    dados = res.get('data')
+    if not isinstance(dados, list):
+        return None
+    saida: List[Dict[str, Any]] = []
+    for item in dados:
+        if not isinstance(item, dict):
+            continue
+        inst = item.get('etiquetaInstancia') or {}
+        etq = inst.get('etiqueta') or {}
+        eid = _inteiro(etq.get('id'), -1)
+        nome = str(etq.get('nome') or '').strip()
+        if eid >= 0 or nome:
+            saida.append({
+                'idEtiqueta': eid,
+                'idEtiquetaInstancia': _inteiro(inst.get('id'), 0) or None,
+                'idProcessoEtiqueta': _inteiro(item.get('id'), 0) or None,
+                'nome': nome,
+                'manter': True,
+                'excluir': False,
+            })
+    return saida
 
-    botao = esperar_elemento(driver, 'button[aria-label="Reprocessar chips do processo"]',
-                             timeout=10)
-    if botao is None:
-        logger.warning('[CHIPADV][CHIPS] Botão "Reprocessar chips do processo" não apareceu')
-        return False
-    safe_click_no_scroll(driver, botao)
 
-    # 1. o accordion "Chips a serem excluídos" precisa aparecer
-    if not espera.ate_aparecer(driver, '#matChipAccordionExcluir', teto=20):
-        logger.warning('[CHIPADV][CHIPS] Dialog de reprocessamento não abriu '
-                       '(#matChipAccordionExcluir ausente)')
-        return False
+def _remover_chip_direto_api(client: Any, id_processo: Any,
+                             etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID,
+                             numero: Any = '',
+                             *,
+                             etiquetas_processo: Optional[List[Dict[str, Any]]] = None) -> bool:
+    """Remove o chip alvo enviando POST direto em /reprocessamentoetiquetas/{id}
+    sem depender do GET pesado de recálculo de regras (~0.07s vs ReadTimeout 30s+).
 
-    # 2. e o chip alvo precisa estar na lista a excluir
-    if not espera.ate_js(driver, """
-        (function () {
-            var acc = document.querySelector('#matChipAccordionExcluir');
-            if (!acc) return false;
-            var chips = acc.querySelectorAll('mat-chip');
-            for (var i = 0; i < chips.length; i++) {
-                var t = (chips[i].getAttribute('aria-label') || '') + ' ' +
-                        (chips[i].textContent || '');
-                if (t.indexOf('%s') !== -1) return true;
-            }
-            return false;
-        })()
-    """ % CHIP_TEXTO_IMPEDIDO, teto=10):
-        logger.warning('[CHIPADV][CHIPS] Chip "%s" não está na lista a excluir — '
-                       'não vou salvar', CHIP_TEXTO_IMPEDIDO)
-        return False
-
-    # 3. Salvar finaliza o reprocessamento
-    salvar = _elemento_por_texto(driver, 'mat-dialog-container button', 'Salvar', teto=10)
-    if salvar is None:
-        salvar = _elemento_por_texto(driver, 'button', 'Salvar', teto=5)
-    if salvar is None:
-        logger.warning('[CHIPADV][CHIPS] Botão "Salvar" do dialog não encontrado')
-        return False
-    safe_click_no_scroll(driver, salvar)
-
-    if not espera.ate_sumir(driver, '#matChipAccordionExcluir', teto=20):
-        logger.warning('[CHIPADV][CHIPS] Dialog de reprocessamento não fechou após Salvar')
+    Só deve ser chamada quando o fluxo já confirmou que não há advogado ativo impedido.
+    """
+    alvo_log = numero or id_processo
+    etiquetas = (etiquetas_processo if etiquetas_processo is not None
+                 else _listar_etiquetas_processo_api(client, id_processo))
+    if etiquetas is None:
         return False
 
-    logger.info('[CHIPADV][CHIPS] Chips reprocessados (dialog salvo)')
+    nome_alvo = _texto_normalizado(CHIP_TEXTO_IMPEDIDO)
+    item_chip = None
+    for e in etiquetas:
+        if not isinstance(e, dict):
+            continue
+        if (_inteiro(e.get('idEtiqueta'), -1) == int(etiqueta_id)
+                or (nome_alvo and nome_alvo in _texto_normalizado(e.get('nome')))):
+            item_chip = e
+            break
+
+    if item_chip is None:
+        logger.info('[CHIPADV][CHIPS] Chip %s já ausente em %s (removido automaticamente)',
+                    etiqueta_id, alvo_log)
+        return True
+
+    payload_item: Dict[str, Any] = {
+        'idEtiqueta': _inteiro(item_chip.get('idEtiqueta'), int(etiqueta_id)),
+        'nome': item_chip.get('nome') or CHIP_TEXTO_IMPEDIDO,
+        'incluir': False,
+        'excluir': True,
+        'manter': False,
+    }
+    if item_chip.get('idEtiquetaInstancia'):
+        payload_item['idEtiquetaInstancia'] = item_chip['idEtiquetaInstancia']
+    if item_chip.get('idProcessoEtiqueta'):
+        payload_item['idProcessoEtiqueta'] = item_chip['idProcessoEtiqueta']
+
+    path = URL_REPROCESSAMENTO_ETIQUETAS_API.format(id=id_processo)
+    for tentativa in range(1, 3):
+        res_post = client.gateway_post(path, json_data={'etiquetas': [payload_item]}, timeout=30)
+        _checar_401(res_post, f'POST reprocessamentoetiquetas/{id_processo}')
+        if res_post.get('ok'):
+            logger.info('[CHIPADV][CHIPS] Chip %s removido via API (POST direto) em %s',
+                        etiqueta_id, alvo_log)
+            return True
+        if _eh_erro_transitorio_gateway(res_post):
+            if _processo_tem_chip(client, id_processo, etiqueta_id) is False:
+                logger.info('[CHIPADV][CHIPS] Chip %s removido via API em %s (confirmado após erro transitório)',
+                            etiqueta_id, alvo_log)
+                return True
+            if tentativa < 2:
+                _esperar_retry_api(1.5)
+                continue
+        logger.warning('[CHIPADV][CHIPS] POST direto %s falhou: %s',
+                       alvo_log, res_post.get('error'))
+        return False
+    return False
+
+
+def _etiquetas_contem_chip(etiquetas: Optional[List[Dict[str, Any]]],
+                           etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID) -> bool:
+    """True se a lista de etiquetas contém o chip `etiqueta_id` (por id ou nome)."""
+    if not etiquetas:
+        return False
+    nome_alvo = _texto_normalizado(CHIP_TEXTO_IMPEDIDO)
+    for e in etiquetas:
+        if not isinstance(e, dict):
+            continue
+        if _inteiro(e.get('idEtiqueta'), -1) == int(etiqueta_id):
+            return True
+        if nome_alvo and nome_alvo in _texto_normalizado(e.get('nome')):
+            return True
+    return False
+
+
+def _consultar_etiquetas_reprocessamento(client: Any, id_processo: Any,
+                                         numero: Any = '',
+                                         *,
+                                         tentativas: int = 2,
+                                         etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID) -> Optional[List[Dict[str, Any]]]:
+    """GET /pje-etiquetas-api/api/reprocessamentoetiquetas/{id} com retry curto e checagem rápida."""
+    alvo_log = numero or id_processo
+    path = URL_REPROCESSAMENTO_ETIQUETAS_API.format(id=id_processo)
+    res_get: Dict[str, Any] = {}
+    for tentativa in range(1, max(1, tentativas) + 1):
+        res_get = client.gateway_get(path, timeout=30)
+        _checar_401(res_get, f'GET reprocessamentoetiquetas/{id_processo}')
+        if res_get.get('ok'):
+            break
+        if _eh_erro_transitorio_gateway(res_get):
+            # Antes de insistir no GET pesado, checa em 0.3s se o chip já sumiu.
+            if _processo_tem_chip(client, id_processo, etiqueta_id) is False:
+                logger.info(
+                    '[CHIPADV][CHIPS] Chip %s já ausente em %s (confirmado após timeout/5xx no GET)',
+                    etiqueta_id, alvo_log,
+                )
+                return []
+            if tentativa < tentativas:
+                logger.warning(
+                    '[CHIPADV][CHIPS] GET reprocessamento %s falhou (tentativa %d/%d, retry): %s',
+                    alvo_log, tentativa, tentativas, res_get.get('error'),
+                )
+                _esperar_retry_api(1.5)
+                continue
+        break
+    if not res_get.get('ok'):
+        logger.warning('[CHIPADV][CHIPS] GET reprocessamento %s falhou: %s',
+                       alvo_log, res_get.get('error'))
+        return None
+    etiquetas = res_get.get('data')
+    if not isinstance(etiquetas, list):
+        logger.warning('[CHIPADV][CHIPS] Resposta inesperada no GET de %s: %r',
+                       alvo_log, etiquetas)
+        return None
+    return etiquetas
+
+
+def _chip_alvo_para_excluir(etiquetas: Optional[List[Dict[str, Any]]],
+                            etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID) -> List[Dict[str, Any]]:
+    """Extrai o item do chip alvo marcado com `excluir=True`."""
+    if not etiquetas:
+        return []
+    nome_alvo = _texto_normalizado(CHIP_TEXTO_IMPEDIDO)
+    return [
+        e for e in etiquetas
+        if isinstance(e, dict) and e.get('excluir') is True and (
+            _inteiro(e.get('idEtiqueta'), -1) == int(etiqueta_id)
+            or nome_alvo in _texto_normalizado(e.get('nome'))
+        )
+    ]
+
+
+def _processo_tem_chip(client: Any, id_processo: Any,
+                       etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID) -> Optional[bool]:
+    """Confirma via GET /pje-etiquetas-api/api/processos/{id}/etiquetas se o
+    chip `etiqueta_id` ainda existe no processo. Devolve True/False ou None em erro.
+    """
+    path = URL_ETIQUETAS_PROCESSO_API.format(id=id_processo)
+    res = client.gateway_get(path, timeout=20)
+    _checar_401(res, f'GET processos/{id_processo}/etiquetas')
+    if not res.get('ok'):
+        return None
+    dados = res.get('data')
+    if not isinstance(dados, list):
+        return None
+    nome_alvo = _texto_normalizado(CHIP_TEXTO_IMPEDIDO)
+    for item in dados:
+        if not isinstance(item, dict):
+            continue
+        etq = (item.get('etiquetaInstancia') or {}).get('etiqueta') or {}
+        if _inteiro(etq.get('id'), -1) == int(etiqueta_id):
+            return True
+        if nome_alvo and nome_alvo in _texto_normalizado(etq.get('nome')):
+            return True
+    return False
+
+
+def _reprocessar_chips_do_processo(client: Any, id_processo: Any,
+                                   etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID,
+                                   numero: Any = '',
+                                   *,
+                                   etiquetas_precarregadas: Optional[List[Dict[str, Any]]] = None) -> bool:
+    """Reprocessa o chip alvo diretamente pela API de etiquetas (sem abrir /detalhe).
+
+    1. Confere se o chip ainda existe (`_processo_tem_chip` quando não está em
+       `excluir=True`) — ex.: após inativar o advogado via PUT, o próprio PJe
+       pode já ter removido o chip automaticamente.
+    2. Se veio com `excluir=True`, envia no POST apenas o chip alvo (`918`),
+       preservando todos os demais chips do processo.
+    """
+    alvo_log = numero or id_processo
+    etiquetas = (etiquetas_precarregadas if etiquetas_precarregadas is not None
+                 else _consultar_etiquetas_reprocessamento(client, id_processo, numero, etiqueta_id=etiqueta_id))
+    if etiquetas is None:
+        # Fallback quando o GET pesado de reprocessamento dá ReadTimeout:
+        # se não há nenhum advogado ativo impedido no processo, remove via POST direto (~0.07s).
+        advs_check = ler_advogados_do_processo(client, id_processo, com_inativas=False)
+        ativos_impedidos = [
+            a for a in advs_check
+            if a.get('ativo') and a.get('parte_ativa', True) and _eh_advogado_com_pendencia_pje(a)
+        ]
+        if not ativos_impedidos:
+            return _remover_chip_direto_api(client, id_processo, etiqueta_id, numero)
+        return False
+
+    a_excluir = _chip_alvo_para_excluir(etiquetas, etiqueta_id)
+    if not a_excluir:
+        tem_chip = _processo_tem_chip(client, id_processo, etiqueta_id)
+        if tem_chip is False:
+            logger.info('[CHIPADV][CHIPS] Chip %s já ausente em %s (removido automaticamente)',
+                        etiqueta_id, alvo_log)
+            return True
+        logger.info('[CHIPADV][CHIPS] Chip %s ainda ativo (manter=True) em %s — nada salvo',
+                    etiqueta_id, alvo_log)
+        return False
+
+    path = URL_REPROCESSAMENTO_ETIQUETAS_API.format(id=id_processo)
+    tentativas_post = 3
+    res_post: Dict[str, Any] = {}
+    for tentativa in range(1, tentativas_post + 1):
+        res_post = client.gateway_post(path, json_data={'etiquetas': a_excluir}, timeout=45)
+        _checar_401(res_post, f'POST reprocessamentoetiquetas/{id_processo}')
+        if res_post.get('ok'):
+            break
+        if _eh_erro_transitorio_gateway(res_post):
+            # O proxy (502/504/ReadTimeout) pode ter expirado mesmo após o backend concluir.
+            if _processo_tem_chip(client, id_processo, etiqueta_id) is False:
+                logger.info(
+                    '[CHIPADV][CHIPS] Chip %s removido via API em %s (confirmado após erro transitório no POST)',
+                    etiqueta_id, alvo_log,
+                )
+                return True
+            if tentativa < tentativas_post:
+                logger.warning(
+                    '[CHIPADV][CHIPS] POST reprocessamento %s falhou (tentativa %d/%d, retry): %s',
+                    alvo_log, tentativa, tentativas_post, res_post.get('error'),
+                )
+                _esperar_retry_api(2.0 * tentativa)
+                continue
+        break
+
+    if not res_post.get('ok'):
+        logger.warning('[CHIPADV][CHIPS] POST reprocessamento %s falhou: %s',
+                       alvo_log, res_post.get('error'))
+        return False
+
+    logger.info('[CHIPADV][CHIPS] Chip %s removido via API em %s',
+                etiqueta_id, alvo_log)
     return True
 
 
-def _criar_gigs_advogado_suspenso(driver: Any) -> bool:
-    """Cria a atividade GIGS "Advogado suspenso" no /detalhe (passo 7 do fluxo)."""
-    from Fix.extracao import criar_gigs
+def _consultar_tarefa_atual(client: Any, id_processo: Any) -> str:
+    """Nome da tarefa mais recente do processo via API (mesmo endpoint do P2B)."""
+    path = URL_TAREFAS_PROCESSO_API.format(id=id_processo)
+    res = client.gateway_get(path, params={'maisRecente': 'true'}, timeout=15)
+    _checar_401(res, f'GET processos/{id_processo}/tarefas')
+    if not res.get('ok'):
+        return ''
+    dados = res.get('data')
+    if isinstance(dados, list) and dados and isinstance(dados[0], dict):
+        return str(dados[0].get('nomeTarefa') or '').strip()
+    if isinstance(dados, dict):
+        return str(dados.get('nomeTarefa') or '').strip()
+    return ''
 
-    ok = bool(criar_gigs(driver, '', '', OBS_GIGS_ADV_SUSPENSO))
-    if ok:
-        logger.info('[CHIPADV][GIGS] Atividade "%s" criada', OBS_GIGS_ADV_SUSPENSO)
+
+def _processo_arquivado(client: Any, id_processo: Any,
+                        etiquetas: Optional[List[Dict[str, Any]]] = None) -> bool:
+    """True se a tarefa atual for Arquivo/Arquivados/Arquivo definitivo OU
+    se o processo possuir etiqueta/chip com 'Arquivado' (inclui 'Desarquivado Sem Reativação').
+
+    Processos arquivados recebem apenas limpeza do chip (sem certidão/GIGS/ato).
+    """
+    if etiquetas:
+        for e in etiquetas:
+            if not isinstance(e, dict):
+                continue
+            if e.get('manter') or e.get('excluir'):
+                nome = _texto_normalizado(e.get('nome'))
+                if 'arquivado' in nome:
+                    return True
+    tarefa = _texto_normalizado(_consultar_tarefa_atual(client, id_processo))
+    if 'desarquivar' in tarefa or 'desarquivado' in tarefa:
+        return False
+    return any(re.search(rf'\b{re.escape(t)}\b', tarefa) for t in TAREFAS_ARQUIVO)
+
+
+def _alterar_situacao_representante_api(client: Any, id_processo: Any,
+                                        id_parte_rep: Any,
+                                        id_parte_representada: Any,
+                                        situacao: str,
+                                        numero: Any = '') -> bool:
+    """PUT /pje-comum-api/api/processos/id/{id}/partes/situacao ('A' | 'I' | 'S')."""
+    if not id_parte_rep:
+        return False
+    payload: Dict[str, Any] = {
+        'idProcesso': _inteiro(id_processo, id_processo),
+        'idParte': _inteiro(id_parte_rep, id_parte_rep),
+        'situacao': situacao,
+    }
+    if id_parte_representada:
+        payload['idParteRepresentada'] = _inteiro(id_parte_representada, id_parte_representada)
+    path = URL_PARTES_SITUACAO_API.format(id=id_processo)
+    res = client.request_gateway('PUT', path, json_data=payload, timeout=20)
+    _checar_401(res, f'PUT partes/situacao/{id_processo}')
+    if not res.get('ok'):
+        logger.warning(
+            '[CHIPADV][PARTE] PUT situacao=%s falhou em %s (rep=%s parte=%s): %s',
+            situacao, numero or id_processo, id_parte_rep, id_parte_representada,
+            res.get('error'),
+        )
+        return False
+    return True
+
+
+def _inativar_advogado_no_processo(client: Any, id_processo: Any,
+                                   vinculos_cpf: List[Dict[str, Any]],
+                                   numero: Any = '') -> bool:
+    """Inativa os vínculos do advogado na autuação via API.
+
+    - Parte inativa (`parte_ativa=False`): o PJe rejeita alteração do representante
+      com `PJE-193`; pula o PUT e deixa apenas o reprocessamento do chip limpar.
+    - Vínculo ativo em parte ativa: PUT situacao='I'.
+    - Vínculo já inativo em parte ativa: cicla A → I para forçar atualização.
+    """
+    ok_algum = False
+    for v in vinculos_cpf:
+        if not v.get('parte_ativa', True):
+            logger.info(
+                '[CHIPADV][PARTE] Parte %s inativa em %s — pulando PUT situacao (apenas reprocessar chip)',
+                v.get('parte') or v.get('parte_id'), numero or id_processo,
+            )
+            continue
+        rep_id = v.get('id_parte_rep')
+        parte_id = v.get('parte_id')
+        if v.get('ativo'):
+            if _alterar_situacao_representante_api(client, id_processo, rep_id, parte_id, 'I', numero):
+                ok_algum = True
+        else:
+            # Advogado já inativo em parte ativa: cicla A → I apenas nele para forçar atualização
+            _alterar_situacao_representante_api(client, id_processo, rep_id, parte_id, 'A', numero)
+            if _alterar_situacao_representante_api(client, id_processo, rep_id, parte_id, 'I', numero):
+                ok_algum = True
+    return ok_algum
+
+
+def _parte_tem_domicilio_eletronico(client: Any, vinculo: Dict[str, Any]) -> bool:
+    """Verifica domicílio eletrônico da parte alvo (mesma lógica de bianca/triagem/citacao.py)."""
+    if vinculo.get('parte_domicilio_inline') is True:
+        return True
+    id_parte = str(vinculo.get('parte_id') or '')
+    id_pessoa = str(vinculo.get('parte_id_pessoa') or '')
+
+    dom_flag = None
+    if id_parte:
+        try:
+            dom_flag = client.domicilio_eletronico(id_parte)
+        except Exception as e:
+            logger.debug('[CHIPADV][DOM] Erro domicilio_eletronico(parte=%s): %s', id_parte, e)
+    if dom_flag is not True and id_pessoa and id_pessoa != id_parte:
+        try:
+            dom_flag_pessoa = client.domicilio_eletronico(id_pessoa)
+            if dom_flag_pessoa is not None:
+                dom_flag = dom_flag_pessoa
+        except Exception as e:
+            logger.debug('[CHIPADV][DOM] Erro domicilio_eletronico(pessoa=%s): %s', id_pessoa, e)
+    return dom_flag is True
+
+
+def _executar_acao_pos_exclusao_detalhe(driver: Any, processo_info: Dict[str, Any],
+                                        advogado_alvo: Dict[str, Any],
+                                        tem_outro_regular: bool,
+                                        tem_domicilio: bool = False) -> bool:
+    """Ramo 3 (advogado ativo em parte ativa, processo não arquivado):
+      - tem outro advogado regular/ausente → anex_advdelete (assinar='sim')
+      - ficou sem advogado (SEMPRE executa ato_regadv):
+          * empresa com domicílio eletrônico → ato_regadv (destinatario='alvo', Assinar=True)
+          * empresa sem domicílio eletrônico → criar_gigs('1', '', 'xs dec adv') antes + ato_regadv
+    """
+    from Fix.extracao import criar_gigs
+    alvo_log = processo_info.get('numero') or processo_info.get('id')
+
+    if tem_outro_regular:
+        return bool(anex_advdelete(driver, processo_info, advogado_alvo))
+
+    if tem_domicilio:
+        return bool(ato_regadv(driver, processo_info, advogado_alvo))
+
+    ok_gigs = bool(criar_gigs(driver, PRAZO_GIGS_DEC_ADV, '', OBS_GIGS_DEC_ADV))
+    if ok_gigs:
+        logger.info('[CHIPADV][GIGS] Atividade "%s" (prazo=%r, domicilio=%s) criada em %s',
+                    OBS_GIGS_DEC_ADV, PRAZO_GIGS_DEC_ADV, tem_domicilio, alvo_log)
     else:
-        logger.warning('[CHIPADV][GIGS] Falha ao criar a atividade "%s"',
-                       OBS_GIGS_ADV_SUSPENSO)
-    return ok
+        logger.warning('[CHIPADV][GIGS] Falha ao criar GIGS "%s" em %s',
+                       OBS_GIGS_DEC_ADV, alvo_log)
+    ok_ato = bool(ato_regadv(driver, processo_info, advogado_alvo, intimar=False, destinatario=None))
+    return ok_gigs and ok_ato
+
+
+def _reprocessar_lote_cpf_paralelo(client: Any, cpf: str,
+                                   etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID,
+                                   max_workers: int = MAX_WORKERS_REPROC) -> Tuple[int, List[Any], bool]:
+    """Ramo 1 — reprocessa via API (em paralelo) todos os processos do CPF + chip + OJ 187.
+
+    Devolve `(qtd_removidos, ids_removidos, consulta_ok)`. Apenas os processos
+    cujo chip `918` foi de fato removido entram em `ids_removidos` — se algum
+    ficar preso por outro advogado impedido no mesmo processo, permanece livre
+    para ser tratado na vez do outro advogado.
+    """
+    cpf = _somente_digitos(cpf)
+    total, itens, consulta_ok = _processos_do_cpf(client, cpf, etiqueta_id)
+    if not consulta_ok:
+        logger.error('[CHIPADV][CHIPS] Falha na consulta do CPF %s', cpf)
+        return 0, [], False
+    if not itens:
+        logger.info('[CHIPADV][CHIPS] Nenhum processo restante com o chip para o CPF %s', cpf)
+        return 0, [], True
+
+    logger.info('[CHIPADV][CHIPS] Reprocessando em paralelo %d processo(s) do CPF %s',
+                total, cpf)
+
+    def _rodar(item: Dict[str, Any]):
+        pid = item.get('id')
+        num = item.get('numero') or item.get('numeroProcesso') or pid
+        if not pid:
+            return pid, False
+        return pid, _reprocessar_chips_do_processo(client, pid, etiqueta_id, num)
+
+    ids_removidos: List[Any] = []
+    workers = max(1, min(max_workers, len(itens)))
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for pid, ok in ex.map(_rodar, itens):
+            if ok and pid is not None:
+                ids_removidos.append(pid)
+
+    logger.info('[CHIPADV][CHIPS] %d/%d processo(s) limpo(s) para o CPF %s',
+                len(ids_removidos), total, cpf)
+    return len(ids_removidos), ids_removidos, True
+
+
+def _tratar_advogado_suspenso_no_processo(driver: Any, client: Any,
+                                          id_processo: Any, numero: Any,
+                                          advogado_alvo: Dict[str, Any],
+                                          etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID) -> bool:
+    """Ramo 3 em um único processo:
+      1. Inativa o advogado na autuação via API (`PUT /partes/situacao`)
+      2. Passo 0: reprocessar chip via API
+      3. Se processo arquivado (tarefa Arquivo* ou chip Arquivado*) → encerra
+      4. Se advogado inativo ou de parte inativa → encerra (só reprocessar chip)
+      5. Se advogado ativo em parte ativa:
+           - tem outro advogado regular/ausente na mesma parte → anex_advdelete
+           - ficou sem advogado → criar_gigs('1', '', 'xs dec adv') + ato_regadv
+    Retorna True se o chip `etiqueta_id` foi removido do processo.
+    """
+    cpf = _somente_digitos(advogado_alvo.get('cpf'))
+    vinculos = ler_vinculos_advogados(client, id_processo, com_inativas=True)
+    vinculos_cpf = [v for v in vinculos if v['cpf'] == cpf]
+
+    if vinculos_cpf:
+        inativou = _inativar_advogado_no_processo(client, id_processo, vinculos_cpf, numero)
+        if inativou:
+            # Pequeno intervalo para o PJe concluir a remoção assíncrona do chip 918
+            _esperar_retry_api(0.8)
+
+    # Passo 0: confere primeiro pelo GET rápido de etiquetas (o PUT de inativação
+    # costuma remover o chip 918 automaticamente, evitando o GET pesado de reprocessamento).
+    etiquetas_atuais = _listar_etiquetas_processo_api(client, id_processo)
+    if etiquetas_atuais is not None and not _etiquetas_contem_chip(etiquetas_atuais, etiqueta_id):
+        logger.info('[CHIPADV][CHIPS] Chip %s já ausente em %s (removido automaticamente)',
+                    etiqueta_id, numero)
+        etiquetas = etiquetas_atuais
+        chip_limpo = True
+    else:
+        etiquetas = _consultar_etiquetas_reprocessamento(client, id_processo, numero, etiqueta_id=etiqueta_id)
+        chip_limpo = _reprocessar_chips_do_processo(
+            client, id_processo, etiqueta_id, numero, etiquetas_precarregadas=etiquetas
+        )
+        if etiquetas is None or not etiquetas:
+            etiquetas = etiquetas_atuais
+
+    # Processo arquivado → só limpeza do chip, sem certidão/GIGS/ato
+    if _processo_arquivado(client, id_processo, etiquetas=etiquetas):
+        logger.info('[CHIPADV][SUSP] Processo %s arquivado — sem ação posterior', numero)
+        return chip_limpo
+
+    # Vínculos onde o advogado era ATIVO em parte ATIVA
+    ativos_em_parte_ativa = [
+        v for v in vinculos_cpf if v.get('ativo') and v.get('parte_ativa')
+    ]
+    if not ativos_em_parte_ativa:
+        logger.info('[CHIPADV][SUSP] Advogado %s inativo/parte inativa em %s — '
+                    'sem ação posterior', advogado_alvo.get('nome'), numero)
+        return chip_limpo
+
+    # Se alguma parte ativa ficou sem advogado regular, prioriza a regra mais
+    # gravosa (GIGS + ato_regadv); se todas têm colega regular/ausente, certidão.
+    sem_outro_adv = [v for v in ativos_em_parte_ativa if not v.get('tem_outro_regular')]
+    todas_tem_outro = not sem_outro_adv
+    tem_domicilio = False
+    if not todas_tem_outro:
+        tem_domicilio = all(_parte_tem_domicilio_eletronico(client, v) for v in sem_outro_adv)
+        logger.info('[CHIPADV][SUSP] Processo %s sem outro advogado — domicilio_eletronico=%s',
+                    numero, tem_domicilio)
+
+    processo_info = {
+        'id': id_processo,
+        'numero': numero,
+        'vinculos_removidos': ativos_em_parte_ativa,
+        'vinculos_sem_outro': sem_outro_adv,
+    }
+    _executar_no_detalhe(
+        driver,
+        id_processo,
+        lambda drv: _executar_acao_pos_exclusao_detalhe(
+            drv, processo_info, advogado_alvo, todas_tem_outro, tem_domicilio=tem_domicilio
+        ),
+        'SUSP',
+        numero,
+    )
+    return chip_limpo
+
+
+def _recuperar_sessao_401(estado: Optional[Dict[str, Any]], motivo: str) -> bool:
+    """Recria o driver + PjeApiClient após HTTP 401 para não perder nenhum processo."""
+    if not estado or not callable(estado.get('recriar_driver')):
+        return False
+    logger.warning('[CHIPADV][401] %s — recriando driver para renovar token...', motivo)
+    novo_driver = estado['recriar_driver'](estado.get('driver'), motivo)
+    if not novo_driver:
+        logger.error('[CHIPADV][401] Falha ao recriar driver (%s)', motivo)
+        return False
+    try:
+        novo_driver.get(URL_PAINEL)
+        espera.ate_url(novo_driver, 'meu-painel', teto=30)
+        estado['driver'] = novo_driver
+        estado['client'] = _criar_client(novo_driver)
+        estado['recriacoes'] = estado.get('recriacoes', 0) + 1
+        logger.info('[CHIPADV][401] Driver e cliente API renovados com sucesso (#%d)',
+                    estado['recriacoes'])
+        return True
+    except Exception as e:
+        logger.error('[CHIPADV][401] Falha ao inicializar novo driver/API: %s: %s',
+                     type(e).__name__, e)
+        return False
+
+
+def _tratar_lote_advogado_suspenso(driver: Any, client: Any,
+                                   advogado_alvo: Dict[str, Any],
+                                   etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID,
+                                   *,
+                                   estado_sessao: Optional[Dict[str, Any]] = None) -> Tuple[int, List[Any], bool]:
+    """Ramo 3 — trata todos os processos do CPF suspenso/cancelado/impedido (chip + CPF + OJ 187)."""
+    cpf = _somente_digitos(advogado_alvo.get('cpf'))
+    total, itens, consulta_ok = _processos_do_cpf(client, cpf, etiqueta_id)
+    if not consulta_ok:
+        logger.error('[CHIPADV][SUSP] Falha na consulta do CPF %s', cpf)
+        return 0, [], False
+    if not itens:
+        logger.info('[CHIPADV][SUSP] Nenhum processo com o chip para o CPF %s', cpf)
+        return 0, [], True
+
+    logger.info('[CHIPADV][SUSP] %d processo(s) para o advogado %s (CPF %s)',
+                total, advogado_alvo.get('nome'), cpf)
+
+    ids_limpos: List[Any] = []
+    for idx, item in enumerate(itens, 1):
+        pid = item.get('id')
+        num = item.get('numero') or item.get('numeroProcesso') or pid
+        logger.info('[CHIPADV][SUSP] [%d/%d] %s (id=%s)', idx, total, num, pid)
+        if not pid:
+            continue
+        for tentativa in range(3):
+            drv_cur = estado_sessao['driver'] if estado_sessao else driver
+            cli_cur = estado_sessao['client'] if estado_sessao else client
+            try:
+                if _tratar_advogado_suspenso_no_processo(
+                    drv_cur, cli_cur, pid, num, advogado_alvo, etiqueta_id
+                ):
+                    ids_limpos.append(pid)
+                break
+            except SessaoExpiradaError as e:
+                if tentativa < 2 and _recuperar_sessao_401(
+                    estado_sessao, f'401 no lote do CPF {cpf} ({num}): {e}'
+                ):
+                    continue
+                raise
+
+    logger.info('[CHIPADV][SUSP] %d/%d processo(s) limpo(s) para o CPF %s',
+                len(ids_limpos), total, cpf)
+    return len(ids_limpos), ids_limpos, True
 
 
 def _executar_no_detalhe(driver: Any, id_processo: Any, acao, rotulo: str,
@@ -746,8 +1887,13 @@ def _processos_do_cpf(client: Any, cpf: str, etiqueta_id: int,
 
 
 def _percorrer_processos_do_cpf(driver: Any, client: Any, cpf: str,
-                                etiqueta_id: int, acao, rotulo: str):
-    """Roda `acao(driver)` em cada processo do CPF que tem o chip.
+                                etiqueta_id: int, acao, rotulo: str,
+                                *, via_api: bool = False):
+    """Roda `acao` em cada processo do CPF que tem o chip.
+
+    Quando `via_api=True`, executa `acao(client, id_processo, etiqueta_id, numero)`
+    diretamente sem abrir aba `/detalhe`. Quando `via_api=False` (ex.: GIGS),
+    abre `/pjekz/processo/{id}/detalhe` em aba nova e chama `acao(driver)`.
 
     Devolve `(processados, ids_processados, consulta_ok)`. Os ids são os
     processos que o lote cobriu — o orquestrador usa essa lista para não
@@ -778,7 +1924,11 @@ def _percorrer_processos_do_cpf(driver: Any, client: Any, cpf: str,
             logger.warning('[CHIPADV][%s] Processo sem id na consulta — pulando',
                            rotulo)
             continue
-        if _executar_no_detalhe(driver, id_processo, acao, rotulo, numero):
+        if via_api:
+            ok = bool(acao(client, id_processo, etiqueta_id, numero))
+        else:
+            ok = _executar_no_detalhe(driver, id_processo, acao, rotulo, numero)
+        if ok:
             processados += 1
 
     logger.info('[CHIPADV][%s] %d/%d processo(s) processado(s) para o CPF %s',
@@ -789,24 +1939,9 @@ def _percorrer_processos_do_cpf(driver: Any, client: Any, cpf: str,
 def reprocessar_chips_do_advogado(driver: Any, cpf: str,
                                   etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID,
                                   client: Any = None) -> int:
-    """Reprocessa os chips de todos os processos do advogado (CPF + chip)."""
+    """Reprocessa o chip alvo em todos os processos do advogado (via API em paralelo)."""
     client = client or _criar_client(driver)
-    qtd, _, _ = _percorrer_processos_do_cpf(
-        driver, client, cpf, etiqueta_id, _reprocessar_chips_do_processo, 'CHIPS')
-    return qtd
-
-
-def criar_gigs_do_advogado(driver: Any, cpf: str,
-                           etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID,
-                           client: Any = None) -> int:
-    """Passo 7 do fluxo — cria GIGS "Advogado suspenso" nos processos do CPF.
-
-    Mesma lógica do reprocessar chips (consulta por CPF + chip, abre cada
-    processo em /detalhe), mas a ação é `criar_gigs(..., 'Advogado suspenso')`.
-    """
-    client = client or _criar_client(driver)
-    qtd, _, _ = _percorrer_processos_do_cpf(
-        driver, client, cpf, etiqueta_id, _criar_gigs_advogado_suspenso, 'GIGS')
+    qtd, _, _ = _reprocessar_lote_cpf_paralelo(client, cpf, etiqueta_id)
     return qtd
 
 
@@ -815,11 +1950,16 @@ def criar_gigs_do_advogado(driver: Any, cpf: str,
 # =============================================================================
 
 def run_chipadv(driver: Any, limite: Optional[int] = None,
-                chip_id: int = CHIP_ADVOGADO_IMPEDIDO_ID) -> Dict[str, Any]:
+                chip_id: int = CHIP_ADVOGADO_IMPEDIDO_ID,
+                *,
+                recriar_driver: Optional[Any] = None) -> Dict[str, Any]:
     """Fluxo CHIPADV completo. Recebe o driver já logado (pw.py/x.py).
 
     `limite`: teto opcional de processos EXAMINADOS no laço externo (só para
     testes). `None` percorre todos os processos do chip.
+    `recriar_driver`: callback `(driver_atual, motivo) -> novo_driver` usada
+    para recriar o driver e renovar o token em caso de HTTP 401 sem perder
+    nenhum processo.
     """
     logger.info('[CHIPADV] === INICIANDO FLUXO CHIP ADVOGADO IMPEDIDO ===')
     resultado: Dict[str, Any] = {
@@ -841,8 +1981,6 @@ def run_chipadv(driver: Any, limite: Optional[int] = None,
         resultado['erros'].append(f'meu-painel: {e}')
         return resultado
 
-    # 1 + 2. processos com o chip — uma consulta (página 1) para saber o total;
-    #        as demais páginas são buscadas conforme o laço avança.
     try:
         client = _criar_client(driver)
     except Exception as e:
@@ -851,7 +1989,24 @@ def run_chipadv(driver: Any, limite: Optional[int] = None,
         resultado['erros'].append(f'api: {e}')
         return resultado
 
-    total_chip, processos = iniciar_busca_processos_por_chip(client, chip_id)
+    estado: Dict[str, Any] = {
+        'driver': driver,
+        'client': client,
+        'recriar_driver': recriar_driver,
+        'recriacoes': 0,
+    }
+
+    try:
+        total_chip, processos = iniciar_busca_processos_por_chip(estado['client'], chip_id)
+    except SessaoExpiradaError as e:
+        if _recuperar_sessao_401(estado, f'401 na consulta inicial: {e}'):
+            total_chip, processos = iniciar_busca_processos_por_chip(estado['client'], chip_id)
+        else:
+            resultado['critical_stop'] = True
+            resultado['critical_reason'] = 'sessao_expirada_401'
+            resultado['erros'].append(str(e))
+            return resultado
+
     resultado['total'] = total_chip
     if not total_chip:
         logger.warning('[CHIPADV] Nenhum processo com o chip %s — nada a fazer', chip_id)
@@ -861,11 +2016,115 @@ def run_chipadv(driver: Any, limite: Optional[int] = None,
     logger.info('[CHIPADV] Total com o chip %s: %d processo(s) — um por vez',
                 chip_id, total_chip)
 
-    # Registro da execução: CPF → ação do lote, e ids que o lote já cobriu.
+    # Memória da execução:
+    # - cpfs_tratados: CPF → {"acao", "nome", "cpf", "ok"}
+    # - ids_limpos: apenas processos cujo chip 918 foi efetivamente removido
+    #   (processos com 2+ advogados impedidos permanecem elegíveis até limpar)
     cpfs_tratados: Dict[str, Dict[str, Any]] = {}
-    ids_tratados: set = set()
+    ids_limpos: set = set()
     examinados = 0
 
+    def _tratar_um_processo(id_proc: Any, numero: Any) -> None:
+        drv = estado['driver']
+        cli = estado['client']
+
+        # Leitura rápida das etiquetas atuais (~0.2s) e de todos os advogados (~0.2s),
+        # sem acionar o GET pesado /reprocessamentoetiquetas antes de saber se há pendência.
+        etiquetas = _listar_etiquetas_processo_api(cli, id_proc)
+        if etiquetas is not None and not _etiquetas_contem_chip(etiquetas, chip_id):
+            logger.info('[CHIPADV][CHIPS] Chip %s já ausente em %s', chip_id, numero)
+            ids_limpos.add(id_proc)
+            resultado['processados'] += 1
+            return
+
+        advogados = ler_advogados_do_processo(cli, id_proc, com_inativas=True)
+        candidatos = [a for a in advogados if _eh_advogado_com_pendencia_pje(a)]
+
+        # Ramo 2: nenhum advogado marcado fora de REGULAR (nem ativos nem inativos)
+        # → remove chip 918 via POST direto (~0.07s), sem depender do GET pesado.
+        if not candidatos:
+            logger.info('[CHIPADV] Processo %s sem advogado marcado como impedido — '
+                        'removendo chip via API (POST direto)', numero)
+            if _remover_chip_direto_api(cli, id_proc, chip_id, numero, etiquetas_processo=etiquetas):
+                ids_limpos.add(id_proc)
+                resultado['processados'] += 1
+            return
+
+        # Trata sequencialmente os advogados suspeitos deste processo
+        for advogado in candidatos:
+            if id_proc in ids_limpos:
+                break
+            drv = estado['driver']
+            cli = estado['client']
+            cpf = advogado['cpf']
+            nome_adv = advogado.get('nome') or ''
+            logger.info('[CHIPADV] Advogado %s (CPF %s, OAB=%s, sitPJe=%s, ativo=%s)',
+                        nome_adv, cpf, advogado.get('oab'),
+                        advogado.get('situacao_oab') or 'ausente',
+                        advogado.get('ativo'))
+
+            if cpf in cpfs_tratados:
+                logger.info('[CHIPADV] CPF %s já tratado (%s) — pulando repetição',
+                            cpf, cpfs_tratados[cpf].get('acao'))
+                continue
+
+            eh_inativo = (not advogado.get('ativo')) or (not advogado.get('parte_ativa', True))
+            eh_arq = _processo_arquivado(cli, id_proc, etiquetas=etiquetas)
+            buscar_tl = (
+                None
+                if (eh_inativo or eh_arq)
+                else (lambda adv=advogado, pid=id_proc: resolver_oab_alvo(estado['client'], adv, id_processo=pid))
+            )
+            status_oab = validar_cadastro_api(
+                cli,
+                advogado,
+                buscar_oab_timeline=buscar_tl,
+            )
+            if status_oab == 'falha':
+                logger.warning('[CHIPADV] API OAB falhou para CPF %s — tentando fallback UI', cpf)
+                status_oab = validar_cadastro(
+                    drv,
+                    cpf,
+                    oab_alvo=advogado.get('oab'),
+                    buscar_oab_timeline=buscar_tl,
+                )
+            if status_oab == 'falha':
+                resultado['erros'].append(f'{numero}: validar cadastro falhou ({cpf})')
+                continue
+
+            if status_oab == 'ok':
+                acao = 'chips'
+                qtd, limpos, consulta_ok = _reprocessar_lote_cpf_paralelo(
+                    estado['client'], cpf, chip_id
+                )
+            else:
+                acao = 'suspenso_excluir'
+                advogado_alvo = {'nome': nome_adv, 'cpf': cpf, 'oab': advogado.get('oab') or ''}
+                resultado.setdefault('suspensos', []).append(advogado_alvo)
+                qtd, limpos, consulta_ok = _tratar_lote_advogado_suspenso(
+                    estado['driver'], estado['client'], advogado_alvo, chip_id,
+                    estado_sessao=estado,
+                )
+
+            if not consulta_ok:
+                resultado['erros'].append(f'{numero}: consulta do CPF {cpf} falhou')
+                continue
+
+            cpfs_tratados[cpf] = {
+                'acao': acao,
+                'nome': nome_adv,
+                'cpf': cpf,
+                'ok': qtd,
+            }
+            ids_limpos.update(limpos)
+            resultado['cpfs'][cpf] = cpfs_tratados[cpf]
+            resultado['processados'] += 1
+
+        if id_proc not in ids_limpos and len(candidatos) > 1:
+            if _reprocessar_chips_do_processo(estado['client'], id_proc, chip_id, numero):
+                ids_limpos.add(id_proc)
+
+    abortado_401 = False
     for indice, proc in enumerate(processos, 1):
         if limite is not None and examinados >= limite:
             logger.info('[CHIPADV] Teto de %d processo(s) examinado(s) — parando',
@@ -878,90 +2137,37 @@ def run_chipadv(driver: Any, limite: Optional[int] = None,
         logger.info('[CHIPADV] [%d/%d] Processo %s (id=%s)',
                     indice, total_chip, numero, id_proc)
 
-        # Já coberto pelo lote de um CPF anterior: não reabre.
-        if id_proc in ids_tratados:
-            logger.info('[CHIPADV] Processo %s já tratado no lote de um CPF — pulando',
+        if id_proc in ids_limpos:
+            logger.info('[CHIPADV] Processo %s já teve o chip removido em lote anterior — pulando',
                         numero)
             resultado['ignorados'] += 1
             continue
 
-        # 3. partes → advogados (com inativos na leitura; o laço usa o 1º ativo)
-        advogados = ler_advogados_do_processo(client, id_proc, com_inativas=True)
-        inativos = [a for a in advogados if not a.get('ativo')]
-        logger.info('[CHIPADV] %d advogado(s) no processo %s (%d inativo(s))',
-                    len(advogados), numero, len(inativos))
+        for tentativa_401 in range(3):
+            try:
+                _tratar_um_processo(id_proc, numero)
+                break
+            except SessaoExpiradaError as e:
+                if tentativa_401 < 2 and _recuperar_sessao_401(
+                    estado, f'401 no processo {numero}: {e}'
+                ):
+                    continue
+                logger.error('[CHIPADV][401] Sessão expirada sem recuperação possível em %s: %s',
+                             numero, e)
+                resultado['critical_stop'] = True
+                resultado['critical_reason'] = 'sessao_expirada_401'
+                resultado['erros'].append(f'{numero}: sessao_expirada_401')
+                abortado_401 = True
+                break
+        if abortado_401:
+            break
 
-        # 4 + 5. advogado do laço → CPF
-        advogado = _filtrar_advogado_do_chip(advogados, proc)
-        if not advogado:
-            logger.warning('[CHIPADV] Processo %s sem advogado — pulando', numero)
-            resultado['erros'].append(f'{numero}: sem advogado')
-            continue
-        cpf = advogado['cpf']
-        logger.info('[CHIPADV] Advogado %s — CPF %s', advogado.get('nome'), cpf)
+    if estado.get('recriacoes', 0) > 0:
+        resultado['_driver'] = estado['driver']
+        resultado['recriacoes_driver'] = estado['recriacoes']
 
-        # CPF já tratado (em qualquer um dos dois laços) → o lote dele cobriu
-        # todos os processos com o chip; este aqui é informação desatualizada.
-        if cpf in cpfs_tratados:
-            logger.info('[CHIPADV] CPF %s já tratado (%s) — processo %s pulado',
-                        cpf, cpfs_tratados[cpf].get('acao'), numero)
-            resultado['ignorados'] += 1
-            continue
-
-        # 6. validar cadastro — o RESULTADO define qual laço roda no passo 7.
-        #    Exceção: quando a API de partes JÁ diz SUSPENSO ou CANCELADO, não
-        #    há o que validar — vai direto ao laço de GIGS, sem abrir
-        #    /pessoa-fisica nem o dialog. Ausente (e REGULAR) validam normal.
-        situacao_oab = (advogado.get('situacao_oab') or '').strip().upper()
-        if situacao_oab in ('SUSPENSO', 'CANCELADO'):
-            logger.warning('[CHIPADV] Advogado %s (CPF %s) — situacaoOab=%r na API '
-                           '— pulando validação, laço de GIGS',
-                           advogado.get('nome'), cpf, situacao_oab)
-            status_oab = 'suspenso'
-        else:
-            status_oab = validar_cadastro(driver, cpf)
-
-        if status_oab == 'falha':
-            resultado['erros'].append(f'{numero}: validar cadastro falhou ({cpf})')
-            continue
-
-        # 7. laço único, escolhido pela validação:
-        #    'ok'       (achou radio SP ou outra inscrição) → reprocessar chips
-        #    'suspenso' (só cadastro suspenso)              → GIGS "Advogado suspenso"
-        if status_oab == 'suspenso':
-            logger.warning('[CHIPADV] Advogado %s (CPF %s) com cadastro SUSPENSO na OAB '
-                           '— laço de GIGS', advogado.get('nome'), cpf)
-            resultado.setdefault('suspensos', []).append(cpf)
-            acao = 'gigs'
-            qtd, ids, consulta_ok = _percorrer_processos_do_cpf(
-                driver, client, cpf, chip_id, _criar_gigs_advogado_suspenso, 'GIGS')
-            logger.info('[CHIPADV] %d processo(s) com GIGS "%s" para %s',
-                        qtd, OBS_GIGS_ADV_SUSPENSO, cpf)
-        else:
-            logger.info('[CHIPADV] Advogado %s (CPF %s) validado na OAB — laço de chips',
-                        advogado.get('nome'), cpf)
-            acao = 'chips'
-            qtd, ids, consulta_ok = _percorrer_processos_do_cpf(
-                driver, client, cpf, chip_id, _reprocessar_chips_do_processo, 'CHIPS')
-            logger.info('[CHIPADV] %d processo(s) com chips reprocessados para %s', qtd, cpf)
-
-        if not consulta_ok:
-            resultado['erros'].append(f'{numero}: consulta do CPF {cpf} falhou')
-            continue
-
-        # Registra o CPF tratado (qualquer um dos laços) e os processos que o
-        # lote cobriu — o laço externo não volta neles.
-        cpfs_tratados[cpf] = {
-            'acao': acao,
-            'processos': len(ids),
-            'ok': qtd,
-        }
-        ids_tratados.update(ids)
-        resultado['cpfs'][cpf] = cpfs_tratados[cpf]
-        resultado['processados'] += 1
-
-    resultado['sucesso'] = not resultado['erros']
-    logger.info('[CHIPADV] total=%d examinados=%d processados=%d ignorados=%d erros=%d',
+    resultado['sucesso'] = (not resultado['erros']) and (not abortado_401)
+    logger.info('[CHIPADV] total=%d examinados=%d processados=%d ignorados=%d erros=%d recriacoes=%d',
                 resultado['total'], examinados, resultado['processados'],
-                resultado['ignorados'], len(resultado['erros']))
+                resultado['ignorados'], len(resultado['erros']), estado.get('recriacoes', 0))
     return resultado

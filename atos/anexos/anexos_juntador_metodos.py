@@ -382,7 +382,13 @@ const alvoNorm = arguments[0] || '';
 const clicarPai = !!arguments[1];
 const norm = (t) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 const escopo = document.querySelector('pje-arvore-modelo-documento') || document;
-const nodos = Array.from(escopo.querySelectorAll('span.nodo-filtrado, .nodo-filtrado'));
+const todosNodos = Array.from(escopo.querySelectorAll('span.nodo-filtrado, .nodo-filtrado'));
+const ehPasta = (n) => {
+    const wrap = n.closest('.node-content-wrapper, mat-tree-node, li') || n.parentElement;
+    return !!(wrap && wrap.querySelector('i.fa-folder, i.fa-folder-open') && !wrap.querySelector('i.fa-file'));
+};
+const nodosArquivo = todosNodos.filter(n => !ehPasta(n));
+const nodos = nodosArquivo.length > 0 ? nodosArquivo : todosNodos;
 if (nodos.length > 0) {
     let escolhido = null;
     if (alvoNorm) {
@@ -953,9 +959,21 @@ def _salvar_documento(self) -> bool:
 
 
 def _assinar_se_necessario(self, configuracao: Dict[str, Any]) -> bool:
-    """Assina documento se configurado."""
-    if configuracao.get('assinar', 'nao').lower() == 'sim':
+    """Assina documento se configurado e aguarda confirmação antes de fechar a aba."""
+    assinar_val = configuracao.get('assinar', 'nao')
+    deve_assinar = (
+        assinar_val is True
+        or str(assinar_val).strip().lower() in ('sim', 'true', '1', 'yes')
+    )
+    if deve_assinar:
         seletor_assinar = 'button[aria-label="Assinar documento e juntar ao processo"]'
-        espera.ate_habilitar(self.driver, seletor_assinar, teto=3)
-        return self._clicar_elemento_gigs(seletor_assinar, 'Assinar')
+        espera.ate_habilitar(self.driver, seletor_assinar, teto=5)
+        if not self._clicar_elemento_gigs(seletor_assinar, 'Assinar'):
+            return False
+        from atos.judicial_utils import aguardar_pos_clique_assinar
+        return aguardar_pos_clique_assinar(
+            self.driver,
+            contexto='JUNTADA',
+            seletor_assinar=seletor_assinar,
+        )
     return True

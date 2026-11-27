@@ -83,6 +83,7 @@ from .wrappers_ato import (
     ato_conv,
     ato_prevjud,
     ato_ed,
+    ato_regadv,
 )
 
 _ATO_JUDICIAL_WRAPPERS = {
@@ -136,6 +137,7 @@ _ATO_JUDICIAL_WRAPPERS = {
     'ato_conv': ato_conv,
     'ato_prevjud': ato_prevjud,
     'ato_ed': ato_ed,
+    'ato_regadv': ato_regadv,
 }
 
 for _name, _fn in _ATO_JUDICIAL_WRAPPERS.items():
@@ -231,6 +233,7 @@ for _name, _fn in _MOVIMENTOS_WRAPPERS.items():
 
 from .wrappers_anex import (
     anex_carta,
+    anex_advdelete,
     anex_sisbconsulta,
     anex_bloqneg,
     anex_parcial,
@@ -242,6 +245,7 @@ from .wrappers_anex import (
 
 _JUNTADA_WRAPPERS = {
     'anex_carta': anex_carta,
+    'anex_advdelete': anex_advdelete,
     'anex_sisbconsulta': anex_sisbconsulta,
     'anex_bloqneg': anex_bloqneg,
     'anex_parcial': anex_parcial,

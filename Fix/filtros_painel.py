@@ -35,7 +35,6 @@ def aplicar_filtro_100(driver):
             opcao_100 = (
                 espera.elemento(driver, "//mat-option[.//span[normalize-space(text())='100']]", teto=2)
                 or espera.elemento(driver, "//mat-option[normalize-space(.)='100']", teto=1)
-                or espera.elemento(driver, ".cdk-overlay-pane mat-option", teto=1)
             )
             if not opcao_100:
                 return False

@@ -1,5 +1,6 @@
 """Caminho rapido: substitui os helpers quentes de Fix/ por versoes nativas."""
 import logging
+import time as _time
 
 from .driver import PWDriver
 from .element import PWElement
@@ -9,6 +10,28 @@ from .locators import traduzir as traduzir_seletor
 logger = logging.getLogger("pjeplay")
 
 _ORIGINAIS = {}
+_SEM_ARG = object()
+
+
+def _esperar_funcao(driver, ctx, fn, arg=_SEM_ARG, timeout=2.0, passo=0.05):
+    """Aguarda `fn` retornar truthy via `ctx.evaluate` (imune ao bug Zone.js + Firefox).
+
+    No Firefox + Angular/Zone.js (PJe-KZ), `window.Promise` é sobrescrito por
+    `ZoneAwarePromise`; `wait_for_function` cria uma Promise no realm da página
+    que o Juggler não aguarda e resolve imediatamente (~10ms) mesmo com retorno
+    `false`. Avaliar sincronamente via `ctx.evaluate` elimina o falso positivo.
+    """
+    limite = _time.monotonic() + max(0.0, float(timeout))
+    while True:
+        try:
+            res = ctx.evaluate(fn) if arg is _SEM_ARG else ctx.evaluate(fn, arg)
+            if res:
+                return True
+        except Exception:
+            pass
+        if _time.monotonic() >= limite:
+            return False
+        driver.pulsar(passo)
 
 _VISIVEL = "el => el.getClientRects().length > 0"
 _ALGUM_VISIVEL = (
@@ -60,8 +83,7 @@ def aguardar_renderizacao_nativa(driver, seletor=None, modo="aparecer", timeout=
             "sumir": _NENHUM_VISIVEL,
             "habilitado": _ALGUM_HABILITADO,
         }.get(modo, _ALGUM_VISIVEL)
-        ctx.wait_for_function(expressao, arg=seletor, timeout=_ms(timeout))
-        return True
+        return _esperar_funcao(driver, ctx, expressao, arg=seletor, timeout=timeout)
     except Exception:
         return False
 
@@ -267,20 +289,14 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10,
 
 
 def ate_js(driver, expressao, teto=2.0):
-    """Versão orientada a evento de `Fix.espera.ate_js` (rAF, sem poll)."""
+    """Versão Playwright de `Fix.espera.ate_js` via `ctx.evaluate` (imune a Zone.js)."""
     ctx = _ctx(driver)
     if ctx is None:
         return _delegar("ate_js", driver, expressao, teto)
     # Import tardio: Fix não pode ser carregado antes de `instalar()`.
     from Fix.espera import _JS_ELEMENTOS
-    try:
-        ctx.wait_for_function(
-            "() => { %s return !!(%s); }" % (_JS_ELEMENTOS, expressao),
-            timeout=_ms(teto),
-        )
-        return True
-    except Exception:
-        return False
+    fn = "() => { %s return !!(%s); }" % (_JS_ELEMENTOS, expressao)
+    return _esperar_funcao(driver, ctx, fn, timeout=teto)
 
 
 # "Assentou" no PJe = Angular estável e nenhum spinner visível.
@@ -314,10 +330,9 @@ def assentar(driver, teto=2.0, motivo=""):
     minimo = min(_QUIESCENCIA_MS, _ms(teto) // 2)
     try:
         ctx.evaluate("() => { window.__pjeplayQuietoDesde = null; }")
-        ctx.wait_for_function(_JS_ASSENTADO, arg=minimo, timeout=_ms(teto))
-        return True
     except Exception:
-        return False
+        pass
+    return _esperar_funcao(driver, ctx, _JS_ASSENTADO, arg=minimo, timeout=teto)
 
 
 def elemento(driver, seletor, teto=10, visivel=True):

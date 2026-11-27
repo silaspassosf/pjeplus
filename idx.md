@@ -720,6 +720,7 @@ Estes arquivos têm ≤30 linhas e apenas re-exportam de `facade_publica.py` ou 
 | Arquivo | Papel |
 |---|---|
 | `atos/judicial_fluxo.py` | Motor principal: `fluxo_cls`, `ato_judicial`, `make_ato_wrapper` |
+| `atos/judicial_api.py` | Navegação CLS e transições via API REST (sem DOM): `navegar_cls_api`, `transitar_tarefa_api`, `CONCLUSAO_API`, `MAPA_BOTOES_ANALISE` |
 | `atos/judicial_navegacao.py` | Navegação: `abrir_tarefa_processo`, `navegar_para_conclusao`, `preparar_campo_minutar` |
 | `atos/judicial_modelos.py` | Modelos: `escolher_tipo_conclusao`, `aguardar_transicao_minutar`, `verificar_estado_atual` |
 | `atos/judicial_utils.py` | Preenchimento: `preencher_prazos_destinatarios`, `verificar_bloqueio_recente` |
@@ -738,8 +739,8 @@ Estes arquivos têm ≤30 linhas e apenas re-exportam de `facade_publica.py` ou 
 **Movimentação Processual:**
 | Arquivo | Papel |
 |---|---|
-| `atos/movimentos_fluxo.py` | Motor: `mov`, `mov_simples`, `movimentar_inteligente`, `abrir_tarefa_por_api` |
-| `atos/movimentos_navegacao.py` | Máquina de estados: `navegar_para_tarefa` (matriz de transição) |
+| `atos/movimentos_fluxo.py` | Motor: `mov`, `mov_simples`, `movimentar_inteligente`, `abrir_tarefa_por_api` (via primária REST `transitar_tarefa_api` + fallback DOM) |
+| `atos/movimentos_navegacao.py` | Máquina de estados: `navegar_para_tarefa` (via primária REST `transitar_tarefa_api` + matriz de transição DOM) |
 | `atos/movimentos_sobrestamento.py` | Sobrestamento: `mov_sob` |
 | `atos/movimentos_fimsob.py` | Fim de sobrestamento: `mov_fimsob` |
 | `atos/movimentos_despacho.py` | Despacho genérico: `despacho_generico` |

@@ -5,8 +5,10 @@ Contrato unificado: atos/regras.py registra todos os wrappers
 deste modulo no RuleRegistry (bucket 'juntada'), no mesmo padrão
 de atos/wrappers_ato.py (ato_*) e atos/wrappers_pec.py (pec_*).
 """
+import html
 import logging
-from typing import Any, Callable, Optional
+import re
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +147,91 @@ anex_carta = make_juntada_wrapper(
     wrapper_name='anex_carta',
 )
 
+def _formatar_cpf_advdelete(cpf: Any) -> str:
+    """Formata CPF em 000.000.000-00 quando tiver 11 dígitos."""
+    digitos = re.sub(r'\D', '', str(cpf or ''))
+    if len(digitos) == 11:
+        return f'{digitos[:3]}.{digitos[3:6]}.{digitos[6:9]}-{digitos[9:]}'
+    return str(cpf or '').strip()
+
+
+def formatar_conteudo_advdelete(vinculos: Optional[Iterable[Dict[str, Any]]]) -> str:
+    """Formata os vínculos excluídos para preencher o marcador `--` de `advdelete`.
+
+    Formato:
+      `Nome da empresa, Advogado - CPF: 000.000.000-00`
+    - Mais de um advogado da mesma empresa → mesma linha separados por vírgula.
+    - Mais de uma empresa → uma por linha (`<br>` para preservar estilo do modelo).
+    """
+    if not vinculos:
+        return ''
+
+    por_empresa: Dict[str, List[str]] = {}
+    vistos: set = set()
+    for v in vinculos:
+        if not isinstance(v, dict):
+            continue
+        empresa = ' '.join(str(v.get('parte') or v.get('empresa') or '').split())
+        adv_nome = ' '.join(str(v.get('nome') or v.get('advogado') or '').split())
+        cpf_fmt = _formatar_cpf_advdelete(v.get('cpf') or v.get('documento'))
+        if not adv_nome and not cpf_fmt:
+            continue
+        chave = (empresa.upper(), re.sub(r'\D', '', cpf_fmt) or adv_nome.upper())
+        if chave in vistos:
+            continue
+        vistos.add(chave)
+
+        trecho_adv = f'{adv_nome} - CPF: {cpf_fmt}' if cpf_fmt else adv_nome
+        por_empresa.setdefault(empresa, []).append(trecho_adv)
+
+    linhas: List[str] = []
+    for empresa, advs in por_empresa.items():
+        advs_str = ', '.join(advs)
+        linha = f'{empresa}, {advs_str}' if empresa else advs_str
+        linhas.append(html.escape(linha))
+
+    return '<br>'.join(linhas)
+
+
+def _builder_conteudo_advdelete(
+    driver: Any = None,
+    numero_processo: Optional[str] = None,
+    debug: bool = True,
+    conteudo_advdelete: Optional[str] = None,
+    vinculos: Optional[Iterable[Dict[str, Any]]] = None,
+    **_: Any,
+) -> Callable[[Any, Optional[str], bool], bool]:
+    """Preenche o marcador `--` do modelo `advdelete` com os advogados excluídos."""
+    from Fix.utils import substituir_marcador_por_conteudo
+
+    if conteudo_advdelete is not None:
+        conteudo = conteudo_advdelete
+    else:
+        conteudo = formatar_conteudo_advdelete(vinculos)
+
+    def inserir_fn(driver: Any, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
+        return substituir_marcador_por_conteudo(
+            driver=driver,
+            conteudo_customizado=conteudo or '',
+            debug=debug,
+            marcador='--',
+        )
+
+    return inserir_fn
+
+
+anex_advdelete = make_juntada_wrapper(
+    tipo='Certidão',
+    descricao='Advogado impedido excluído',
+    modelo='advdelete',
+    assinar='sim',
+    sigilo='nao',
+    coleta_conteudo=None,
+    substituir_link=False,
+    conteudo_builder=_builder_conteudo_advdelete,
+    wrapper_name='anex_advdelete',
+)
+
 anex_sisbconsulta = make_juntada_wrapper(
     tipo='Certidão',
     descricao='Consulta SISBAJUD',
@@ -213,7 +300,9 @@ poupa = anex_poupa
 
 __all__ = [
     'make_juntada_wrapper',
+    'formatar_conteudo_advdelete',
     'anex_carta',
+    'anex_advdelete',
     'anex_sisbconsulta',
     'anex_bloqneg',
     'anex_parcial',

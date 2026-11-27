@@ -165,8 +165,11 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
         # Sem anexos = sem SISBAJUD = certidão negativa → ato_meios direto
         if not tem_anexos:
             logger.info('[ARGOS][ETAPA 2.5] Certidao sem anexos — ato_meios direto')
-            ato_meios(driver, debug=log)
-            return True
+            res_meios = ato_meios(driver, debug=log)
+            ok_meios = bool(res_meios[0]) if isinstance(res_meios, tuple) else bool(res_meios)
+            if not ok_meios:
+                logger.error('[ARGOS][ETAPA 2.5] ato_meios retornou falha — processo não será marcado como concluído')
+            return ok_meios
 
         # === ETAPA 3: ANÁLISE SISBAJUD VIA CERTIDÃO DE DEVOLUÇÃO ===
         logger.info('[ARGOS][ETAPA 3] Lendo certidão de devolução para análise SISBAJUD...')

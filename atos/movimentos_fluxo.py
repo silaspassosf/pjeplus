@@ -196,6 +196,17 @@ def mov_simples(
 
     try:
         log_debug("Buscando aba /detalhe...")
+        if '/processo/' not in (getattr(driver, 'current_url', '') or ''):
+            _trocar_para_aba_detalhe(driver, debug=debug)
+
+        if not texto_confirmacao:
+            from .judicial_api import cls_api_habilitada, extrair_destino_de_seletor, transitar_tarefa_api
+            destino_api = extrair_destino_de_seletor(seletor_alvo)
+            if destino_api and cls_api_habilitada():
+                res_api = transitar_tarefa_api(driver, destino_api, abrir_url=True)
+                if res_api:
+                    return res_api.get('_status_api') != 'bloqueado_regra'
+
         if not _trocar_para_aba_detalhe(driver, debug=debug):
             logger.error('[MOV_SIMPLES][ERRO] Aba /detalhe não encontrada!')
             return False
@@ -280,6 +291,19 @@ def mov(
 ) -> bool:
     """Fluxo geral MELHORADO para movimentos:"""
     logger.info(f'[MOV] Iniciando movimento geral - Seletor: {seletor_alvo}')
+
+    if not texto_confirmacao:
+        try:
+            if '/processo/' not in (getattr(driver, 'current_url', '') or ''):
+                _trocar_para_aba_detalhe(driver, debug=debug)
+            from .judicial_api import cls_api_habilitada, extrair_destino_de_seletor, transitar_tarefa_api
+            destino_api = extrair_destino_de_seletor(seletor_alvo)
+            if destino_api and cls_api_habilitada():
+                res_api = transitar_tarefa_api(driver, destino_api, abrir_url=True)
+                if res_api:
+                    return res_api.get('_status_api') != 'bloqueado_regra'
+        except Exception as e:
+            logger.warning(f'[MOV] Fallback DOM após exceção na via API: {e}')
 
     def log_debug(msg):
         if debug:
@@ -612,6 +636,34 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
 
     try:
         from .movimentos_navegacao import clicar_botao_por_texto, movimentar_analise, navegar_para_tarefa
+        from .judicial_api import cls_api_habilitada, transitar_tarefa_api
+
+        # Via primária 100% API REST (sem cliques em botões de transição); fallback para DOM abaixo.
+        if '?' not in (destino or '') and cls_api_habilitada():
+            precisa_tela = bool(ultimo_lance or chip or responsavel)
+            try:
+                res_mov_api = transitar_tarefa_api(driver, destino, abrir_url=True)
+            except Exception as e:
+                logger.warning(f'[MOV_INT] Exceção na via API — seguindo pelo DOM: {e}')
+                res_mov_api = None
+
+            if res_mov_api:
+                status_api = res_mov_api.get('_status_api')
+                if status_api == 'bloqueado_regra':
+                    return False
+                if status_api in ('transitada', 'ja_no_destino', 'prazo_ja_em_analise'):
+                    if precisa_tela and status_api != 'prazo_ja_em_analise':
+                        if ultimo_lance:
+                            try:
+                                clicar_ultimo_lance(driver, ultimo_lance)
+                            except Exception:
+                                pass
+                        if chip or responsavel:
+                            try:
+                                chip_responsavel(driver, chip=chip, responsavel=responsavel)
+                            except Exception:
+                                pass
+                    return True
 
         if '?' not in (destino or ''):
             tarefa_api = _tarefa_atual_via_api(driver)

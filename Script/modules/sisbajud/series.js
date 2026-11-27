@@ -59,8 +59,15 @@
         return '';
     }
 
-    // ── Token (coletado na aba do SISBAJUD via GM_setValue) ─────────────
+    // ── Token e ponte com a aba do SISBAJUD via GM_* ───────────────────
     var CHAVE_TOKEN_REQ = 'pjetools_sisbajud_token_req';
+    var CHAVE_TOKEN_RESP = 'pjetools_sisbajud_token_resp';
+    var CHAVE_API_REQ = 'pjetools_sisbajud_series_req';
+    var CHAVE_API_RESP = 'pjetools_sisbajud_series_resp';
+
+    function ehHostSisbajud() {
+        return /^sisbajud\.(pdpj|cnj)\.jus\.br$/.test(location.hostname);
+    }
 
     function limparToken(t) {
         return String(t || '').trim().replace(/^"+|"+$/g, '');
@@ -88,6 +95,50 @@
                 resolve('');
                 return;
             }
+            var reqId = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+            var resolvido = false;
+            var listenerRespId = null;
+            var listenerTokId = null;
+            var timer = null;
+
+            function finalizar(val) {
+                if (resolvido) return;
+                resolvido = true;
+                if (timer) clearTimeout(timer);
+                try {
+                    if (typeof GM_removeValueChangeListener === 'function') {
+                        if (listenerRespId != null) GM_removeValueChangeListener(listenerRespId);
+                        if (listenerTokId != null) GM_removeValueChangeListener(listenerTokId);
+                    }
+                } catch (e) { }
+                resolve(limparToken(val));
+            }
+
+            listenerRespId = GM_addValueChangeListener(CHAVE_TOKEN_RESP, function (_name, _oldVal, newVal) {
+                if (newVal && newVal.id === reqId) finalizar(newVal.token || '');
+            });
+
+            listenerTokId = GM_addValueChangeListener(CHAVE_TOKEN, function (_name, _oldVal, newVal) {
+                var limpo = limparToken(newVal);
+                if (limpo) finalizar(limpo);
+            });
+
+            timer = setTimeout(function () {
+                var atual = lerToken();
+                finalizar(atual || '');
+            }, timeoutMs || 1500);
+
+            GM_setValue(CHAVE_TOKEN_REQ, { id: reqId, ts: Date.now() });
+        });
+    }
+
+    function requisitarViaAbaSisbajud(url, timeoutMs) {
+        return new Promise(function (resolve) {
+            if (typeof GM_setValue !== 'function' || typeof GM_addValueChangeListener !== 'function') {
+                resolve(null);
+                return;
+            }
+            var reqId = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
             var resolvido = false;
             var listenerId = null;
             var timer = null;
@@ -101,22 +152,17 @@
                         GM_removeValueChangeListener(listenerId);
                     }
                 } catch (e) { }
-                resolve(limparToken(val));
+                resolve(val);
             }
 
-            listenerId = GM_addValueChangeListener(CHAVE_TOKEN, function (_name, _oldVal, newVal) {
-                var limpo = limparToken(newVal);
-                // Aceita o token vigente mesmo quando é igual ao anterior: o retry
-                // precisa do token atual da aba, não de uma mudança de valor.
-                if (limpo) finalizar(limpo);
+            listenerId = GM_addValueChangeListener(CHAVE_API_RESP, function (_name, _oldVal, newVal) {
+                if (newVal && newVal.id === reqId) {
+                    finalizar({ status: Number(newVal.status || 0), texto: String(newVal.texto || '') });
+                }
             });
 
-            timer = setTimeout(function () {
-                var atual = lerToken();
-                finalizar(atual || '');
-            }, timeoutMs || 1500);
-
-            GM_setValue(CHAVE_TOKEN_REQ, Date.now());
+            timer = setTimeout(function () { finalizar(null); }, timeoutMs || 8000);
+            GM_setValue(CHAVE_API_REQ, { id: reqId, url: url, ts: Date.now() });
         });
     }
 
@@ -132,15 +178,35 @@
     }
 
     // ── Chamada à API do SISBAJUD ──────────────────────────────────────
+    function requisitarSameOrigin(url, token) {
+        var headers = { Accept: 'application/json' };
+        if (token) headers.Authorization = 'Bearer ' + token;
+        return fetch(url, { method: 'GET', headers: headers, credentials: 'include' })
+            .then(function (r) {
+                return r.text().then(function (t) { return { status: r.status, texto: t }; });
+            });
+    }
+
     function requisitar(url, token) {
+        if (ehHostSisbajud()) {
+            var caminho = url.replace(/^https?:\/\/[^/]+/, '');
+            return requisitarSameOrigin(location.origin + caminho, token);
+        }
         return new Promise(function (resolve, reject) {
-            var headers = { Accept: 'application/json' };
+            // Backend Spring do SISBAJUD devolve 403 "Invalid CORS request" se
+            // receber Origin de outro domínio (ex: https://pje.trt2.jus.br).
+            var headers = {
+                Accept: 'application/json',
+                Origin: 'https://sisbajud.pdpj.jus.br',
+                Referer: 'https://sisbajud.pdpj.jus.br/',
+            };
             if (token) headers.Authorization = 'Bearer ' + token;
             if (typeof GM_xmlhttpRequest === 'function') {
                 GM_xmlhttpRequest({
                     method: 'GET',
                     url: url,
                     headers: headers,
+                    anonymous: !!token,
                     timeout: 20000,
                     onload: function (r) { resolve({ status: r.status, texto: r.responseText || '' }); },
                     onerror: function () { reject(new Error('Falha de rede ao consultar API do SISBAJUD.')); },
@@ -148,9 +214,7 @@
                 });
                 return;
             }
-            fetch(url, { headers: headers, credentials: 'include' })
-                .then(function (r) { return r.text().then(function (t) { resolve({ status: r.status, texto: t }); }); })
-                .catch(reject);
+            requisitarSameOrigin(url, token).then(resolve, reject);
         });
     }
 
@@ -167,46 +231,48 @@
         }
 
         var url = URL_API + '?codProcesso=' + encodeURIComponent(dig);
-        var resp = token ? await requisitar(url, token) : await requisitar(url, '');
-        log('HTTP', resp.status, 'v1/serie', token ? '(bearer)' : '(sessao)');
+        var resp = await requisitar(url, token);
+        log('HTTP', resp.status, 'v1/serie', token ? '(bearer)' : '(sem-token)', resp.status !== 200 ? String(resp.texto || '').slice(0, 120) : '');
 
-        function recusado(r) { return r.status === 401 || r.status === 403; }
-
-        // Token "ativo" (JWT não vencido) pode ser recusado quando a sessão/escopo
-        // dele não corresponde ao processo consultado. A API também autoriza pelo
-        // cookie da aba logada do SISBAJUD: tentar sem Bearer evita o 403 antes de
-        // exigir F5 do usuário.
-        if (recusado(resp) && token) {
-            var porSessao = await requisitar(url, '');
-            log('HTTP (sem bearer)', porSessao.status, 'v1/serie (sessao)');
-            if (porSessao.status === 200) resp = porSessao;
+        // Se o navegador/Tampermonkey ignorou o override de Origin e o backend
+        // devolveu 403 ("Invalid CORS request"), executa o GET same-origin
+        // dentro da aba do SISBAJUD aberta via GM_addValueChangeListener.
+        if (resp.status === 403 && !ehHostSisbajud()) {
+            log('HTTP 403 cross-origin — delegando fetch same-origin para a aba do SISBAJUD...');
+            var viaAba = await requisitarViaAbaSisbajud(url, 8000);
+            if (viaAba) {
+                log('HTTP (via aba SISBAJUD)', viaAba.status, 'v1/serie', viaAba.status !== 200 ? String(viaAba.texto || '').slice(0, 120) : '');
+                resp = viaAba;
+            } else {
+                log('aba do SISBAJUD não respondeu à delegação (fechada ou sem pjetools atualizado)');
+            }
         }
 
-        if (recusado(resp)) {
+        if (resp.status === 401 || resp.status === 403) {
             var tokenAntigo = token;
             var recoletado = await pedirTokenParaAbaSisbajud(1500);
-            if (recoletado) {
+            if (recoletado && recoletado !== tokenAntigo) {
                 token = recoletado;
-                // Mesmo token = mesma recusa. Não repete o Bearer; vai direto à sessão.
-                if (recoletado !== tokenAntigo) {
-                    resp = await requisitar(url, token);
-                    log('HTTP (retry)', resp.status, 'v1/serie (bearer)');
-                } else {
-                    log('token recoletado é o mesmo — tentando apenas por sessão');
-                }
-                if (recusado(resp)) {
-                    var porSessao2 = await requisitar(url, '');
-                    log('HTTP (retry sem bearer)', porSessao2.status, 'v1/serie (sessao)');
-                    if (porSessao2.status === 200) resp = porSessao2;
+                resp = await requisitar(url, token);
+                log('HTTP (retry)', resp.status, 'v1/serie (bearer)');
+                if (resp.status === 403 && !ehHostSisbajud()) {
+                    var viaAba2 = await requisitarViaAbaSisbajud(url, 8000);
+                    if (viaAba2) {
+                        log('HTTP (retry via aba SISBAJUD)', viaAba2.status, 'v1/serie');
+                        resp = viaAba2;
+                    }
                 }
             }
         }
 
-        if (recusado(resp)) {
+        if (resp.status === 401 || resp.status === 403) {
+            var detalhe = String(resp.texto || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+            var ehCors = resp.status === 403 && /cors/i.test(detalhe);
             return {
-                erro: 'API SISBAJUD recusou (HTTP ' + resp.status + '). '
-                    + 'Abra este processo na aba do SISBAJUD logada e tente de novo; '
-                    + 'se persistir, faça logout/login nessa aba para renovar a sessão.',
+                erro: 'API SISBAJUD recusou (HTTP ' + resp.status + (detalhe ? ': ' + detalhe : '') + '). '
+                    + (ehCors
+                        ? 'Mantenha uma aba logada do SISBAJUD aberta (e atualizada com F5) para consulta same-origin.'
+                        : 'Atualize (F5) a aba do SISBAJUD logada; se persistir, faça logout/login para renovar o token.'),
             };
         }
         if (resp.status !== 200) {
@@ -401,7 +467,7 @@
         }
     }
 
-    // ── Coletor de token na aba do SISBAJUD ────────────────────────────
+    // ── Coletor de token e ponte same-origin na aba do SISBAJUD ────────
     function coletarTokenSisbajud() {
         var ultimo = '';
 
@@ -430,21 +496,50 @@
                 var exp = expDoJwt(t);
                 log('token coletado' + (exp ? ' (expira ' + new Date(exp * 1000).toISOString() + ')' : ''));
             }
+            return t;
         }
 
-        log('aba SISBAJUD: coletor ativo');
+        log('aba SISBAJUD: coletor + ponte same-origin ativos');
         passo(true);
         setInterval(function () { passo(false); }, 5000);
         try { window.addEventListener('storage', function () { passo(false); }); } catch (e) { }
         try { document.addEventListener('visibilitychange', function () { if (!document.hidden) passo(false); }); } catch (e) { }
         try {
             if (typeof GM_addValueChangeListener === 'function') {
-                GM_addValueChangeListener(CHAVE_TOKEN_REQ, function () { passo(true); });
+                GM_addValueChangeListener(CHAVE_TOKEN_REQ, function (_n, _o, req) {
+                    var t = passo(true);
+                    if (req && req.id && typeof GM_setValue === 'function') {
+                        GM_setValue(CHAVE_TOKEN_RESP, { id: req.id, token: t || '', ts: Date.now() });
+                    }
+                });
+                GM_addValueChangeListener(CHAVE_API_REQ, function (_n, _o, req) {
+                    if (!req || !req.id || !req.url || typeof GM_setValue !== 'function') return;
+                    var t = passo(true);
+                    var caminho = String(req.url).replace(/^https?:\/\/[^/]+/, '');
+                    var urlLocal = location.origin + caminho;
+                    requisitarSameOrigin(urlLocal, t)
+                        .then(function (r) {
+                            GM_setValue(CHAVE_API_RESP, {
+                                id: req.id,
+                                status: r.status,
+                                texto: r.texto,
+                                ts: Date.now(),
+                            });
+                        })
+                        .catch(function (e) {
+                            GM_setValue(CHAVE_API_RESP, {
+                                id: req.id,
+                                status: 0,
+                                texto: String((e && e.message) || e || ''),
+                                ts: Date.now(),
+                            });
+                        });
+                });
             }
         } catch (e) { }
     }
 
-    if (/^sisbajud\.(pdpj|cnj)\.jus\.br$/.test(location.hostname)) {
+    if (ehHostSisbajud()) {
         coletarTokenSisbajud();
     }
 

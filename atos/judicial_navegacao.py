@@ -452,7 +452,10 @@ _JS_MINUTA_PRONTA = """(() => {
     if (!location.href.toLowerCase().includes('/minutar')) return false;
     const vis = el => !!(el && el.getClientRects().length > 0);
     const filtro = document.querySelector('input#inputFiltro, pje-arvore-modelo-documento input');
-    if (!vis(filtro) || filtro.disabled) return false;
+    const abaModelos = Array.from(document.querySelectorAll('pje-editor-lateral div[role="tab"], pje-editor-lateral .mat-tab-label'))
+        .find(t => (t.textContent || '').toLowerCase().includes('modelo'));
+    const painelLateralPronto = (vis(filtro) && !filtro.disabled) || vis(abaModelos);
+    if (!painelLateralPronto) return false;
     const eds = Array.from(document.querySelectorAll(
         'div[class*="area-conteudo"][contenteditable="true"], ' +
         'div[class*="area-conteudo"] div[contenteditable="true"], ' +

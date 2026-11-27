@@ -155,13 +155,27 @@ def _patch_ambiente(monkeypatch, estado_por_painel, *, selecoes_por_chamada=None
     monkeypatch.setattr(lo, "aplicar_filtro_100", _aplicar_100)
     monkeypatch.setattr(lo, "_executar_js", _executar_js)
     monkeypatch.setattr(lo, "preencher_campo", _preencher)
+    def _analise_livres_stub(drv, *, tag="[PRAZO][ANALISE_LIVRES]"):
+        estado["eventos"].append(("analise_livres", estado["painel"]))
+        return {
+            "ok": True,
+            "total_livres": 0,
+            "movidos_aguardando_prazo": [],
+            "gigs_xs1_criadas": [],
+            "falhas_movimento": [],
+            "falhas_gigs": [],
+            "sem_status_transicao": [],
+            "diagnostico": {},
+        }
+
     monkeypatch.setattr(lo, "safe_click_no_scroll", _clicar)
     monkeypatch.setattr(lo, "safe_click", _clicar)
+    monkeypatch.setattr(lo, "ciclo_analise_livres", _analise_livres_stub)
 
     return _DriverObservavel(), estado
 
 
-def test_loop_prazo_executa_7_etapas_em_ordem_exata(monkeypatch):
+def test_ciclo0_e_ciclo3_dom_executam_em_ordem_exata(monkeypatch):
     driver, estado = _patch_ambiente(
         monkeypatch,
         {
@@ -178,12 +192,8 @@ def test_loop_prazo_executa_7_etapas_em_ordem_exata(monkeypatch):
         selecoes_por_chamada=[4, 3],
     )
 
-    res = lo.loop_prazo(driver)
-
-    assert res.sucesso is True
-    assert res.status == "OK"
-    assert res.detalhes["prazos_vencidos"] is True
-    assert res.detalhes["cumprimento_providencias"] is True
+    assert lo.ciclo0(driver) is True
+    assert lo.ciclo3(driver) is True
 
     marcos = [
         ev for ev in estado["eventos"]
@@ -215,9 +225,8 @@ def test_painel_vazio_encerra_cedo_sem_filtro_100_nem_xs1(monkeypatch):
         selecoes_por_chamada=[],
     )
 
-    res = lo.loop_prazo(driver)
-
-    assert res.sucesso is True
+    assert lo.ciclo0(driver) is True
+    assert lo.ciclo3(driver) is True
     tipos = [ev[0] for ev in estado["eventos"]]
     assert "aplicar_filtro_100" not in tipos
     assert "selecionar_livres" not in tipos
@@ -239,9 +248,7 @@ def test_multipagina_aplica_xs1_por_pagina_com_barreira_de_paginacao(monkeypatch
         selecoes_por_chamada=[5, 2],
     )
 
-    res = lo.loop_prazo(driver)
-
-    assert res.sucesso is True
+    assert lo.ciclo3(driver) is True
     acoes_cumprimento = [
         ev for ev in estado["eventos"]
         if ev[0] in ("selecionar_livres", "salvar_xs1", "proxima_pagina")
@@ -265,15 +272,14 @@ def test_zero_livres_pula_criacao_xs1(monkeypatch):
         selecoes_por_chamada=[0, 0],
     )
 
-    res = lo.loop_prazo(driver)
-
-    assert res.sucesso is True
+    assert lo.ciclo0(driver) is True
+    assert lo.ciclo3(driver) is True
     tipos = [ev[0] for ev in estado["eventos"]]
     assert "salvar_xs1" not in tipos
     assert tipos.count("selecionar_livres") == 2
 
 
-def test_falha_em_prazos_vencidos_aborta_antes_de_cumprimento(monkeypatch):
+def test_falha_em_prazos_vencidos_dom_retorna_false(monkeypatch):
     driver, estado = _patch_ambiente(
         monkeypatch,
         {
@@ -283,12 +289,7 @@ def test_falha_em_prazos_vencidos_aborta_antes_de_cumprimento(monkeypatch):
         selecoes_por_chamada=[],
     )
 
-    res = lo.loop_prazo(driver)
-
-    assert res.sucesso is False
-    assert res.status == "FALHA"
-    assert res.detalhes["prazos_vencidos"] is False
-    assert res.detalhes["cumprimento_providencias"] is False
+    assert lo.ciclo0(driver) is False
     urls = [ev[1] for ev in estado["eventos"] if ev[0] == "get"]
     assert urls == [lo.URL_PAINEL_PRAZOS_VENCIDOS]
 
@@ -467,9 +468,7 @@ def test_filtro_100_nao_finalizado_bloqueia_disparo_de_xs1(monkeypatch):
         selecoes_por_chamada=[5],
     )
 
-    res = lo.loop_prazo(driver)
-
-    assert res.sucesso is False
+    assert lo.ciclo0(driver) is False
     tipos = [ev[0] for ev in estado["eventos"]]
     assert "aplicar_filtro_100" in tipos
     assert "selecionar_livres" not in tipos
@@ -524,8 +523,127 @@ def test_xs1_so_dispara_apos_tabela_100_terminar_renderizacao_e_spinner_sumir(mo
     monkeypatch.setattr(lo.espera, "elemento", _elemento_com_spinner)
     monkeypatch.setattr(lo, "_executar_js", _exec_js_linhas)
 
-    res = lo.loop_prazo(driver)
-
-    assert res.sucesso is True
+    assert lo.ciclo0(driver) is True
     assert idx_dom["i"] == 2
     assert any(ev[0] == "salvar_xs1" for ev in estado["eventos"])
+
+
+def test_loop_prazo_4_etapas_100_porcento_api(monkeypatch):
+    """Fluxo Prazo completo via API: Vencidos→Análise, Análise não-livres→Cumprimento, Análise livres→Ag.Prazo/xs1, Cumprimento livres→xs1."""
+    import Fix.variaveis as fv
+    import api.filtro_analise as fa
+
+    eventos = []
+
+    class _ClientFake:
+        def listar_agrupamento_processos(self, id_agrup, *, fases=None, id_tarefa=None, **kw):
+            eventos.append(("listar", id_agrup, list(fases) if fases else None, id_tarefa))
+            if id_agrup == fa.ID_AGRUPAMENTO_PRAZOS_VENCIDOS:
+                return [{"id": 10, "numeroProcesso": "0000010", "idTarefa": 511, "faseProcessual": "Execução"}]
+            if id_agrup == fa.ID_AGRUPAMENTO_ANALISE:
+                return [
+                    {"id": 20, "numeroProcesso": "0000020", "idTarefa": 500, "faseProcessual": "Execução", "temComentario": True, "idOrgaoJulgador": 187},
+                    {"id": 21, "numeroProcesso": "0000021", "idTarefa": 500, "faseProcessual": "Liquidação", "idOrgaoJulgador": 187},
+                    {"id": 22, "numeroProcesso": "0000022", "idTarefa": 500, "faseProcessual": "Execução", "idOrgaoJulgador": 187},
+                    {"id": 23, "numeroProcesso": "0000023", "idTarefa": 500, "faseProcessual": "Execução", "isPeticaoNaoApreciada": True, "idOrgaoJulgador": 187},
+                    {"id": 24, "numeroProcesso": "0000024", "idTarefa": 500, "faseProcessual": "Execução", "dataPrazoFinal": "2026-11-27", "idOrgaoJulgador": 187},
+                ]
+            if id_agrup == fa.ID_AGRUPAMENTO_CUMPRIMENTO:
+                return [
+                    {"id": 30, "numeroProcesso": "0000030", "idTarefa": 491, "faseProcessual": "Execução", "idOrgaoJulgador": 187},
+                    {"id": 31, "numeroProcesso": "0000031", "idTarefa": 491, "faseProcessual": "Conhecimento", "dataPrazoFinal": "2026-12-01", "idOrgaoJulgador": 187},
+                ]
+            return []
+
+        def tipos_atividades_gigs_lote(self, ids, **kw):
+            return {24: ["Prazo"]} if 24 in ids else {}
+
+        def atividades_gigs(self, pid):
+            if str(pid) == "24":
+                return [{"id": 999, "observacao": "xs1"}]
+            return []
+
+        def transicoes_tarefa(self, pid, tid, **kw):
+            return [{"nomeTransicaoDestino": "Aguardando prazo", "transicaoDisponivel": pid == 21}]
+
+        def movimentar_tarefa_lote_api(self, pid, tid, destino, **kw):
+            eventos.append(("movimentar", pid, tid, destino))
+            return {"ok": True, "id_tarefa_destino": 500, "nome_tarefa_destino": destino}
+
+        def criar_atividade_gigs_api(self, pid, obs, *, dias=-1, id_oj=None, **kw):
+            eventos.append(("gigs", pid, dias, obs, id_oj))
+            return {"ok": True, "id": 9000 + pid, "dataPrazo": "2026-11-27"}
+
+    monkeypatch.setattr(fv, "cliente_para", lambda drv, grau=1: _ClientFake())
+    monkeypatch.setattr(fa, "_buscar_ids_escaninho_nao_apreciados", lambda client, **kw: set())
+
+    res = lo.loop_prazo(_FakeDriver())
+    assert res.sucesso is True
+    assert res.status == "OK"
+    assert res.detalhes["prazos_vencidos"]["movidos"] == ["0000010"]
+    assert res.detalhes["analise_nao_livres"]["movidos"] == ["0000020"]
+    assert res.detalhes["analise_livres"]["movidos_aguardando_prazo"] == ["0000021"]
+    assert res.detalhes["analise_livres"]["gigs_xs1_criadas"] == ["0000022"]
+    assert res.detalhes["cumprimento_providencias"]["gigs_xs1_criadas"] == ["0000030"]
+    # Processo 23 (doc não apreciado) e Processo 24 (apenas GIGS xs1) não podem ter sido movidos nem recebido GIGS
+    assert all(ev[1] not in (23, 24) for ev in eventos if ev[0] in ("movimentar", "gigs"))
+    assert ("movimentar", 10, 511, "Análise") in eventos
+    assert ("movimentar", 20, 500, "Cumprimento de providências") in eventos
+    assert ("movimentar", 21, 500, "Aguardando prazo") in eventos
+    assert ("gigs", 22, -1, "xs1", 187) in eventos
+    assert ("gigs", 30, -1, "xs1", 187) in eventos
+
+
+def test_ciclo_analise_livres_legado_despacha_acoes(monkeypatch):
+    """Compatibilidade: ciclo_analise_livres continua funcionando se chamado isoladamente."""
+    from unittest.mock import MagicMock
+    import Fix.variaveis as fv
+    import api.filtro_analise as fa
+
+    p_disp = fa.ProcessoAnaliseFiltrado(
+        id_processo=101,
+        numero_processo="0000101-00.2026.5.02.0703",
+        fase_processual="Execução",
+        id_tarefa=500,
+        tarefa="Análise",
+        aguardando_prazo_disponivel=True,
+        estado_aguardando_prazo="disponivel",
+    )
+    p_indisp = fa.ProcessoAnaliseFiltrado(
+        id_processo=202,
+        numero_processo="0000202-00.2026.5.02.0703",
+        fase_processual="Liquidação",
+        id_tarefa=500,
+        tarefa="Análise",
+        aguardando_prazo_disponivel=False,
+        estado_aguardando_prazo="indisponivel",
+    )
+
+    fake_client = MagicMock()
+    fake_client.transitar_tarefa_processo.return_value = {
+        "ok": True,
+        "id_tarefa_destino": 510,
+        "nome_tarefa_destino": "Aguardando prazo",
+    }
+    chamadas_gigs = []
+
+    monkeypatch.setattr(fv, "cliente_para", lambda drv, grau=1: fake_client)
+    monkeypatch.setattr(
+        fa,
+        "filtrar_processos_analise_livres",
+        lambda client, **kwargs: ([p_disp, p_indisp], {"ok": True}),
+    )
+    monkeypatch.setattr(
+        lo,
+        "_criar_gigs_1_xs1_no_processo",
+        lambda drv, pid, num, tag: (chamadas_gigs.append((pid, num)), True)[1],
+    )
+
+    res = lo.ciclo_analise_livres(_FakeDriver())
+    assert res["ok"] is True
+    assert res["movidos_aguardando_prazo"] == ["0000101-00.2026.5.02.0703"]
+    assert res["gigs_xs1_criadas"] == ["0000202-00.2026.5.02.0703"]
+    fake_client.transitar_tarefa_processo.assert_called_once_with(
+        101, 500, "Aguardando prazo", verificar_bloqueio=True
+    )
+    assert chamadas_gigs == [(202, "0000202-00.2026.5.02.0703")]

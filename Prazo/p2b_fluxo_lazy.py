@@ -13,7 +13,7 @@ def _lazy_import():
         from atos.judicial import ato_pesquisas, idpj
         from atos.movimentos import mov
         from atos.wrappers_mov import mov_arquivar
-        from atos.wrappers_ato import ato_sobrestamento, ato_pesqliq, ato_180, ato_calc2, ato_prev, ato_meios, ato_idpj, ato_reitmeios, ato_reit1, ato_HCL
+        from atos.wrappers_ato import ato_sobrestamento, ato_suspliq, ato_pesqliq, ato_180, ato_calc2, ato_prev, ato_meios, ato_idpj, ato_reitmeios, ato_reit1, ato_HCL
         from atos import pec_excluiargos
         from atos.wrappers_anex import anex_retifidpj, anex_poupa, poupa
 
@@ -26,6 +26,7 @@ def _lazy_import():
             'mov': mov,
             'mov_arquivar': mov_arquivar,
             'ato_sobrestamento': ato_sobrestamento,
+            'ato_suspliq': ato_suspliq,
             'ato_pesqliq': ato_pesqliq,
             'ato_180': ato_180,
             'ato_calc2': ato_calc2,

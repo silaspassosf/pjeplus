@@ -2025,6 +2025,7 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         resultado_reus_1 = helpers._processar_reus_otimizado(driver, todos_reus, max_validos=10)
         processados_ate = resultado_reus_1.get('processados_ate', len(todos_reus)) if isinstance(resultado_reus_1, dict) else len(todos_reus)
         reus_restantes = todos_reus[processados_ate:] if processados_ate < len(todos_reus) else []
+        descartados_m1 = set(resultado_reus_1.get('reus_descartados') or []) if isinstance(resultado_reus_1, dict) else set()
 
         _configurar_valor(driver, dados_processo)
 
@@ -2088,7 +2089,21 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                     )
                 helpers._processar_reus_otimizado(driver, reus_restantes, max_validos=10)
             else:
-                helpers._processar_reus_otimizado(driver, todos_reus, max_validos=10)
+                def _chave_doc(r):
+                    d = ''.join(filter(str.isdigit, str((r or {}).get('cpfcnpj', ''))))
+                    return d[:8] if len(d) == 14 else d
+
+                reus_para_m2 = [
+                    r for r in todos_reus
+                    if not descartados_m1 or _chave_doc(r) not in descartados_m1
+                ]
+                if len(reus_para_m2) < len(todos_reus) and log:
+                    logger.info(
+                        '[SISBAJUD] 2ª minuta: pulando %d réu(s) já descartado(s) na 1ª minuta (0 contas/rec. judicial) — enviando %d',
+                        len(todos_reus) - len(reus_para_m2),
+                        len(reus_para_m2),
+                    )
+                helpers._processar_reus_otimizado(driver, reus_para_m2, max_validos=10)
 
             _configurar_valor(driver, dados_processo)
 

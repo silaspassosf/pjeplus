@@ -939,6 +939,12 @@ def ato_judicial(
                     if alterado:
                         espera.assentar(driver, 0.5)
                         js_recheca_pec = """() => {
+                            var inpPec = document.querySelector(
+                                'pje-intimacao-automatica label.enviarPec input[type="checkbox"], ' +
+                                'label.enviarPec input[type="checkbox"], ' +
+                                'pje-intimacao-automatica label[class*="enviarPec"] input[type="checkbox"]'
+                            );
+                            if (inpPec) return !!(inpPec.checked || inpPec.getAttribute('aria-checked') === 'true');
                             var el = document.querySelector(
                                 'pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"], ' +
                                 'mat-checkbox[aria-label="Enviar para PEC"], ' +
@@ -960,6 +966,8 @@ def ato_judicial(
                             # Fallback Playwright: em alguns formulários Angular o
                             el_pec = esperar_elemento(
                                 driver,
+                                'pje-intimacao-automatica label.enviarPec input[type="checkbox"], '
+                                'label.enviarPec input[type="checkbox"], '
                                 'pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"], '
                                 'mat-checkbox[aria-label="Enviar para PEC"], '
                                 'pje-intimacao-automatica .checkbox-pec mat-checkbox, '

@@ -40,6 +40,19 @@ def _processar_reus_otimizado(driver, reus, max_validos=10):
             let reusRemovidos = 0;
             let maxValid = {max_validos};
             let processadosAte = 0;
+            let reusValidos = [];
+            let reusDescartados = [];
+
+            const _toastLimite = () => {{
+                const snacks = Array.from(document.querySelectorAll('simple-snack-bar, snack-bar-container, .mat-snack-bar-container, .toast-message'));
+                for (const s of snacks) {{
+                    const t = (s.innerText || s.textContent || '').toLowerCase();
+                    if (t.includes('excesso') || t.includes('muitas requisi') || t.includes('limite') || t.includes('aguarde')) {{
+                        return t;
+                    }}
+                }}
+                return '';
+            }};
 
             try {{
                 for (let i = 0; i < reus.length; i++) {{
@@ -58,13 +71,13 @@ def _processar_reus_otimizado(driver, reus, max_validos=10):
 
                     cpfInput.focus();
                     cpfInput.value = '';
-                    await new Promise(resolve => setTimeout(resolve, 400));
+                    await new Promise(resolve => setTimeout(resolve, 300));
 
                     cpfInput.value = reu.cpfcnpj;
                     triggerEvent(cpfInput, 'input');
                     triggerEvent(cpfInput, 'change');
 
-                    await new Promise(resolve => setTimeout(resolve, 800));
+                    await new Promise(resolve => setTimeout(resolve, 600));
 
                     let btnAdicionar = document.querySelector('button.btn-adicionar.mat-mini-fab');
                     if (!btnAdicionar) {{
@@ -77,26 +90,42 @@ def _processar_reus_otimizado(driver, reus, max_validos=10):
                         continue;
                     }}
 
+                    let linhasAntes = document.querySelectorAll('tr.mat-row').length;
                     btnAdicionar.click();
                     log.push('Reu adicionado, aguardando processamento...');
 
-                    // Aguardar retorno das contas na tabela (max 3000ms, checando a cada 100ms)
+                    // Aguardar a NOVA linha deste reu entrar na tabela (tbl.length > linhasAntes)
+                    // com qtdeRelacionamentos preenchida (evita ler linha anterior e disparar rajada).
+                    let novaLinhaPronta = false;
                     let tWait = Date.now();
-                    while (Date.now() - tWait < 3000) {{
+                    while (Date.now() - tWait < 6000) {{
                         let tbl = document.querySelectorAll('tr.mat-row');
-                        if (tbl.length > 0) {{
+                        if (tbl.length > linhasAntes) {{
                             let cel = tbl[tbl.length - 1].querySelector('td.mat-column-qtdeRelacionamentos');
                             if (cel) {{
                                 let btn = cel.querySelector('button .mat-button-wrapper');
                                 let txt = btn ? btn.textContent.trim() : cel.textContent.trim();
-                                if (txt && !txt.includes('...') && /\\d+/.test(txt)) break;
+                                if (txt && !txt.includes('...') && /\\d+/.test(txt)) {{
+                                    novaLinhaPronta = true;
+                                    break;
+                                }}
+                            }}
+                        }} else {{
+                            let msgLim = _toastLimite();
+                            if (msgLim) {{
+                                log.push('Aviso de limite/excesso detectado — aguardando 3s antes de retentar...');
+                                await new Promise(resolve => setTimeout(resolve, 3000));
+                                if (document.querySelectorAll('tr.mat-row').length === linhasAntes && btnAdicionar && !btnAdicionar.disabled) {{
+                                    btnAdicionar.click();
+                                    tWait = Date.now();
+                                }}
                             }}
                         }}
                         await new Promise(resolve => setTimeout(resolve, 100));
                     }}
 
                     let tabelaLinhas = document.querySelectorAll('tr.mat-row');
-                    if (tabelaLinhas.length > 0) {{
+                    if (novaLinhaPronta && tabelaLinhas.length > linhasAntes) {{
                         let ultimaLinha = tabelaLinhas[tabelaLinhas.length - 1];
                         let celulaRelacionamentos = ultimaLinha.querySelector('td.mat-column-qtdeRelacionamentos');
                         let celulaIdentificacao = ultimaLinha.querySelector('td.mat-column-identificacao');
@@ -118,22 +147,24 @@ def _processar_reus_otimizado(driver, reus, max_validos=10):
                                     }} else {{
                                         log.push('Reu sem contas - removendo...');
                                     }}
+                                    reusDescartados.push(reu.cpfcnpj);
                                     let botaoMenu = ultimaLinha.querySelector('button.mat-menu-trigger');
                                     if (botaoMenu) {{
                                         botaoMenu.click();
-                                        await new Promise(resolve => setTimeout(resolve, 500));
+                                        await new Promise(resolve => setTimeout(resolve, 400));
 
                                         let botaoExcluir = document.querySelector('button.mat-menu-item mat-icon.fa-trash-alt');
                                         if (botaoExcluir) {{
                                             botaoExcluir.closest('button').click();
                                             log.push(emRecuperacao ? 'Reu removido (recuperacao judicial)' : 'Reu removido (0 contas)');
                                             reusRemovidos++;
-                                            await new Promise(resolve => setTimeout(resolve, 800));
+                                            await new Promise(resolve => setTimeout(resolve, 600));
                                         }}
                                     }}
                                 }} else {{
                                     log.push('Reu possui ' + qtde + ' conta(s) - mantido');
                                     reusAdicionados++;
+                                    reusValidos.push(reu.cpfcnpj);
                                     if (reusAdicionados >= maxValid) {{
                                         log.push('Limite de ' + maxValid + ' reus validos atingido');
                                         processadosAte = i + 1;
@@ -142,10 +173,12 @@ def _processar_reus_otimizado(driver, reus, max_validos=10):
                                 }}
                             }}
                         }}
+                    }} else {{
+                        log.push('Nova linha nao confirmada para ' + reu.cpfcnpj + ' — prosseguindo sem ler linha anterior');
                     }}
 
                     if (i < reus.length - 1) {{
-                        await new Promise(resolve => setTimeout(resolve, 800));
+                        await new Promise(resolve => setTimeout(resolve, 600));
                     }}
                 }}
 
@@ -154,7 +187,9 @@ def _processar_reus_otimizado(driver, reus, max_validos=10):
                     log: log,
                     adicionados: reusAdicionados,
                     removidos: reusRemovidos,
-                    processados_ate: processadosAte || reus.length
+                    processados_ate: processadosAte || reus.length,
+                    reus_validos: reusValidos,
+                    reus_descartados: reusDescartados
                 }};
 
             }} catch(e) {{
@@ -164,7 +199,9 @@ def _processar_reus_otimizado(driver, reus, max_validos=10):
                     log: log,
                     adicionados: reusAdicionados,
                     removidos: reusRemovidos,
-                    processados_ate: processadosAte || reus.length
+                    processados_ate: processadosAte || reus.length,
+                    reus_validos: reusValidos,
+                    reus_descartados: reusDescartados
                 }};
             }}
         }}
@@ -200,14 +237,18 @@ def _processar_reus_otimizado(driver, reus, max_validos=10):
                     'sucesso': True,
                     'adicionados': adicionados,
                     'removidos': removidos,
-                    'processados_ate': resultado_reus.get('processados_ate', len(reus))
+                    'processados_ate': resultado_reus.get('processados_ate', len(reus)),
+                    'reus_validos': resultado_reus.get('reus_validos') or [],
+                    'reus_descartados': resultado_reus.get('reus_descartados') or [],
                 }
             return {
                 'sucesso': False,
                 'msg': resultado_reus.get('msg', ''),
                 'adicionados': adicionados,
                 'removidos': removidos,
-                'processados_ate': resultado_reus.get('processados_ate', 0)
+                'processados_ate': resultado_reus.get('processados_ate', 0),
+                'reus_validos': resultado_reus.get('reus_validos') or [],
+                'reus_descartados': resultado_reus.get('reus_descartados') or [],
             }
 
         return {'sucesso': False, 'msg': 'Falha no processamento de reus'}

@@ -58,12 +58,12 @@ _JS_EDITOR_ALVO = """() => {
 _JS_TEOR_CARREGADO = """() => {
     var dlg = document.querySelector('pje-dialogo-visualizar-modelo');
     if (!dlg) return false;
-    var preview = dlg.querySelector('.div-preview-conteudo, .preview-conteudo, .conteudo-modelo, .ck-content, [class*="preview"]');
+    var preview = dlg.querySelector('.div-preview, .div-preview-conteudo, .preview-conteudo, .conteudo-modelo, .ck-content');
     if (!preview) return false;
     var clone = preview.cloneNode(true);
-    clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, [data-placeholder]').forEach(p => p.remove());
+    clone.querySelectorAll('.div-preview-botoes, button, .placeholder-conteudo, .ck-placeholder, [data-placeholder]').forEach(p => p.remove());
     var txt = (clone.innerText || clone.textContent || '').trim();
-    return txt.length > 10 || clone.querySelector('figure') !== null || clone.querySelector('table') !== null;
+    return txt.length > 5 || clone.querySelector('figure') !== null || clone.querySelector('table') !== null;
 }"""
 
 _JS_EDITOR_COM_CONTEUDO = """(sel) => {
@@ -86,38 +86,119 @@ _JS_EDITOR_COM_CONTEUDO = """(sel) => {
         clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder').forEach(p => p.remove());
         var texto = (clone.innerText || clone.textContent || '').trim();
         if (texto.length > 1) return true;          // texto real no editor
-        if (area.querySelector('figure') !== null) return true;  // imagem anexada sem texto
+        if (area.querySelector('figure') !== null || area.querySelector('table') !== null) return true;
     }
     return false;
 }"""
 
-_JS_TRECHO_PREVIEW = """() => {
-    var dlg = document.querySelector('pje-dialogo-visualizar-modelo');
-    if (!dlg) return '';
-    var preview = dlg.querySelector('.div-preview-conteudo, .preview-conteudo, .conteudo-modelo, .ck-content, [class*="preview"]');
-    if (!preview) return '';
-    var clone = preview.cloneNode(true);
-    clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, button').forEach(p => p.remove());
-    var raw = (clone.innerText || clone.textContent || '').replace(/\\u00a0/g, ' ').toLowerCase();
-    var txt = raw.replace(/[^a-z0-9\\u00c0-\\u024f]+/g, ' ').trim();
-    var palavras = txt.split(' ').filter(w => w.length > 2);
-    if (palavras.length < 4) return '';
-    var meio = Math.max(0, Math.floor(palavras.length / 2) - 3);
-    return palavras.slice(meio, meio + 6).join(' ');
+_JS_MEDIR_TOTAL_EDITORES = """(sel) => {
+    var areas = Array.from(document.querySelectorAll(sel)).filter(function(el) {
+        return !el.closest('pje-dialogo-visualizar-modelo');
+    });
+    if (!areas.length) return -1;
+    var total = 0;
+    for (var i = 0; i < areas.length; i++) {
+        var area = areas[i];
+        var len = 0;
+        try {
+            var ck = area.ckeditorInstance;
+            if (ck && typeof ck.getData === 'function') {
+                len = (ck.getData() || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').trim().length;
+            }
+        } catch (e) {}
+        if (len === 0) {
+            var clone = area.cloneNode(true);
+            clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder').forEach(p => p.remove());
+            len = (clone.innerText || clone.textContent || '').trim().length;
+        }
+        if (len === 0 && (area.querySelector('figure') !== null || area.querySelector('table') !== null)) {
+            len = 10;
+        }
+        total += len;
+    }
+    return total;
 }"""
 
-_JS_EDITOR_CONTEM_TRECHO = """(trecho) => {
-    if (!trecho) return false;
-    var areas = Array.from(document.querySelectorAll(
-        'div[class*="area-conteudo"][contenteditable="true"], div[class*="area-conteudo"] div[contenteditable="true"], .ck-editor__editable[contenteditable="true"]'));
-    for (var a of areas) {
-        if (a.closest('pje-dialogo-visualizar-modelo')) continue;
-        var raw = (a.innerText || a.textContent || '').replace(/\\u00a0/g, ' ').toLowerCase();
-        var txt = raw.replace(/[^a-z0-9\\u00c0-\\u024f]+/g, ' ').trim();
-        var palavras = txt.split(' ').filter(w => w.length > 2).join(' ');
-        if (palavras.indexOf(trecho) !== -1) return true;
+_JS_ARMAR_OBSERVER_MODELO = """() => {
+    try {
+        if (window.__pjeModeloObserver) {
+            try { window.__pjeModeloObserver.disconnect(); } catch (e) {}
+        }
+        window.__pjeModeloInseridoSnack = false;
+        var obs = new MutationObserver(function(muts) {
+            for (var m of muts) {
+                for (var n of m.addedNodes) {
+                    if (!n || !n.tagName) continue;
+                    var tag = (n.tagName || '').toUpperCase();
+                    if (tag.indexOf('SNACK-BAR') !== -1 || (n.querySelector && n.querySelector('simple-snack-bar'))) {
+                        var txt = (n.innerText || n.textContent || '').toLowerCase();
+                        if (txt.indexOf('modelo de documento inserido') !== -1 || txt.indexOf('inserido com sucesso') !== -1) {
+                            window.__pjeModeloInseridoSnack = true;
+                        }
+                    }
+                }
+            }
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+        window.__pjeModeloObserver = obs;
+        return true;
+    } catch (e) {
+        return false;
     }
-    return false;
+}"""
+
+_JS_DESARMAR_OBSERVER_MODELO = """() => {
+    var ok = !!window.__pjeModeloInseridoSnack;
+    try {
+        if (window.__pjeModeloObserver) {
+            window.__pjeModeloObserver.disconnect();
+            window.__pjeModeloObserver = null;
+        }
+    } catch (e) {}
+    return ok;
+}"""
+
+_JS_CONFIRMAR_INSERCAO = """(sel, lenAntes) => {
+    var snackOk = !!window.__pjeModeloInseridoSnack;
+    if (!snackOk) {
+        var snacks = Array.from(document.querySelectorAll('simple-snack-bar, snack-bar-container'));
+        for (var s of snacks) {
+            var stxt = (s.innerText || s.textContent || '').toLowerCase();
+            if (stxt.indexOf('modelo de documento inserido') !== -1 || stxt.indexOf('inserido com sucesso') !== -1) {
+                snackOk = true;
+                window.__pjeModeloInseridoSnack = true;
+                break;
+            }
+        }
+    }
+    var areas = Array.from(document.querySelectorAll(sel)).filter(function(el) {
+        return !el.closest('pje-dialogo-visualizar-modelo');
+    });
+    var total = 0;
+    var temMidia = false;
+    for (var i = 0; i < areas.length; i++) {
+        var area = areas[i];
+        var len = 0;
+        try {
+            var ck = area.ckeditorInstance;
+            if (ck && typeof ck.getData === 'function') {
+                len = (ck.getData() || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').trim().length;
+            }
+        } catch (e) {}
+        if (len === 0) {
+            var clone = area.cloneNode(true);
+            clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder').forEach(p => p.remove());
+            len = (clone.innerText || clone.textContent || '').trim().length;
+        }
+        total += len;
+        if (area.querySelector('figure') !== null || area.querySelector('table') !== null) {
+            temMidia = true;
+        }
+    }
+    if (lenAntes > 0) {
+        return (total > lenAntes) || (snackOk && (total > 1 || temMidia));
+    }
+    return total > 1 || temMidia;
 }"""
 
 _JS_MEDIR = """(sel) => {
@@ -142,14 +223,31 @@ def _resolver_editor_alvo(driver: Any) -> str:
 def _focar_editor_alvo(driver: Any) -> bool:
     """Foca e ativa o editor-alvo (dispositivo -> fundamentação -> genérico), conforme padrão gigs-plugin aaDespacho."""
     js_foco = """() => {
-        var areas = Array.from(document.querySelectorAll('div[class*="area-conteudo"] div[contenteditable="true"], div[class*="area-conteudo"][contenteditable="true"], div.ck-content[contenteditable="true"]'));
+        var areas = Array.from(document.querySelectorAll(
+            'div[class*="area-conteudo"][contenteditable="true"][role="textbox"], ' +
+            'div[class*="area-conteudo"] div[contenteditable="true"], ' +
+            'div[class*="area-conteudo"][contenteditable="true"], ' +
+            'div.ck-content[contenteditable="true"]'
+        )).filter(function(el) {
+            return !el.closest('pje-dialogo-visualizar-modelo');
+        });
         if (!areas.length) return false;
-        var ehSentenca = Array.from(document.querySelectorAll('div[class*="area-conteudo"] div[class*="placeholder-conteudo"]'))
-            .some(function(el) { return (el.innerText || '').toLowerCase().indexOf('dispositivo') !== -1; });
+        var ehSentenca = Array.from(document.querySelectorAll('div[class*="area-conteudo"] div[class*="placeholder-conteudo"], div[class*="area-conteudo"]'))
+            .some(function(el) {
+                if (el.closest('pje-dialogo-visualizar-modelo')) return false;
+                var txt = (el.innerText || '').trim().toLowerCase();
+                return txt === '(dispositivo)' || txt.indexOf('dispositivo') !== -1 && txt.length < 30;
+            });
         var nomeAlvo = ehSentenca ? 'dispositivo' : 'fundamentacao';
         var foco = areas.find(function(el) {
             var lbl = (el.getAttribute('aria-label') || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
-            return lbl.indexOf(nomeAlvo) !== -1;
+            if (lbl.indexOf(nomeAlvo) !== -1) return true;
+            var prev = el.previousElementSibling;
+            if (prev) {
+                var ptxt = (prev.innerText || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+                if (ptxt.indexOf(nomeAlvo) !== -1) return true;
+            }
+            return false;
         }) || areas[0];
         if (foco) {
             foco.focus();
@@ -289,6 +387,45 @@ def _localizar_e_clicar_nodo_filtrado(driver: Any, timeout: int = 15) -> bool:
     return False
 
 
+def _medir_total_editores(driver: Any, seletor: str) -> int:
+    """Comprimento total do conteúdo real nos editores-alvo (-1 se ausente)."""
+    try:
+        if hasattr(driver, 'page'):
+            return int(driver.page.evaluate(_JS_MEDIR_TOTAL_EDITORES, seletor))
+        expr = "(%s)(%s)" % (_JS_MEDIR_TOTAL_EDITORES, json.dumps(seletor))
+        if hasattr(driver, '_js'):
+            return int(driver._js(expr))
+    except Exception:
+        pass
+    return -1
+
+
+def _ativar_aba_modelos(driver: Any) -> bool:
+    """Se `input#inputFiltro` não está visível porque outra aba lateral está ativa, clica na aba Modelos."""
+    js_aba = """() => {
+        var filtro = document.querySelector('input#inputFiltro, pje-arvore-modelo-documento input');
+        if (filtro && filtro.getClientRects().length > 0) return 'ja_visivel';
+        var abas = Array.from(document.querySelectorAll('pje-editor-lateral div[role="tab"], pje-editor-lateral .mat-tab-label'));
+        var abaModelos = abas.find(function(t) {
+            return (t.textContent || '').toLowerCase().indexOf('modelo') !== -1;
+        });
+        if (abaModelos) {
+            abaModelos.click();
+            return 'clicada';
+        }
+        return 'ausente';
+    }"""
+    try:
+        res = None
+        if hasattr(driver, 'page'):
+            res = driver.page.evaluate(js_aba)
+        elif hasattr(driver, '_js'):
+            res = driver._js(js_aba)
+        return res in ('ja_visivel', 'clicada')
+    except Exception:
+        return False
+
+
 def inserir_modelo_no_editor(
     driver: Any,
     modelo_nome: str,
@@ -296,14 +433,30 @@ def inserir_modelo_no_editor(
     timeout_teor: int = 15,
     timeout_conteudo: int = 8,
 ) -> bool:
-    """Insere um modelo no editor de minuta — fluxo ÚNICO (padrão gigs-plugin aaDespacho)."""
+    """Insere um modelo no editor de minuta — fluxo único (padrão gigs-plugin aaDespacho) com guarda anti-duplicação."""
     if log is None:
         def log(_msg):
             return None
 
+    def _fechar_snack() -> None:
+        js_fechar_snack = """() => {
+            var s = document.querySelector('simple-snack-bar, snack-bar-container');
+            if (s) {
+                var btn = s.querySelector('button');
+                if (btn) btn.click();
+                return true;
+            }
+            return false;
+        }"""
+        try:
+            if hasattr(driver, 'page'):
+                driver.page.evaluate(js_fechar_snack)
+        except Exception:
+            pass
+
     try:
-        #    permite que CKEditor saiba qual tópico ativo deve receber a inserção).
         _focar_editor_alvo(driver)
+        _ativar_aba_modelos(driver)
 
         seletor_editor_alvo = _resolver_editor_alvo(driver)
 
@@ -312,8 +465,14 @@ def inserir_modelo_no_editor(
             'input#inputFiltro, pje-arvore-modelo-documento',
             teto=20,
         ):
-            log('[MODELO] Árvore de modelos não apareceu em 20s — página de minutar sem árvore')
-            return False
+            _ativar_aba_modelos(driver)
+            if not espera.ate_aparecer(
+                driver,
+                'input#inputFiltro, pje-arvore-modelo-documento',
+                teto=5,
+            ):
+                log('[MODELO] Árvore de modelos não apareceu em 20s — página de minutar sem árvore')
+                return False
         espera.ate_sumir(
             driver,
             'pje-arvore-modelo-documento mat-progress-spinner, pje-arvore-modelo-documento mat-progress-bar, '
@@ -321,19 +480,33 @@ def inserir_modelo_no_editor(
             teto=12,
         )
         seletor_editor_alvo = _resolver_editor_alvo(driver) or seletor_editor_alvo
+        len_antes = max(0, _medir_total_editores(driver, seletor_editor_alvo))
 
         if not _preencher_filtro_modelo(driver, modelo_nome):
             log(f'[MODELO] Campo de filtro não encontrado para "{modelo_nome}"')
             return False
 
         conteudo_confirmado = False
-        for tentativa in (1, 2, 3):
-            rotulo = '1a' if tentativa == 1 else '%da' % tentativa
+        snack_confirmado = False
+        for tentativa in (1, 2):
+            rotulo = '1a' if tentativa == 1 else '2a'
 
-            _focar_editor_alvo(driver)
-            seletor_editor_alvo = _resolver_editor_alvo(driver) or seletor_editor_alvo
+            # Guarda anti-duplicação: nunca reinserir se o editor já recebeu conteúdo real.
             if tentativa > 1:
+                len_agora = _medir_total_editores(driver, seletor_editor_alvo)
+                if (len_antes == 0 and len_agora > 1) or (len_antes > 0 and len_agora > len_antes):
+                    log(
+                        f'[MODELO] Conteúdo já presente no editor antes da {rotulo} tentativa '
+                        f'(len {len_antes} -> {len_agora}) — abortando retry para evitar duplicação'
+                    )
+                    conteudo_confirmado = True
+                    break
+                _focar_editor_alvo(driver)
+                seletor_editor_alvo = _resolver_editor_alvo(driver) or seletor_editor_alvo
                 _preencher_filtro_modelo(driver, modelo_nome)
+            else:
+                _focar_editor_alvo(driver)
+                seletor_editor_alvo = _resolver_editor_alvo(driver) or seletor_editor_alvo
 
             if not aguardar_e_clicar(driver, _SEL_NODO, timeout=10):
                 log(f'[MODELO] Nodo filtrado não clicável via caminho nativo para "{modelo_nome}", tentando fallback com expansão')
@@ -347,6 +520,11 @@ def inserir_modelo_no_editor(
 
             if not espera.ate_js(driver, f"({_JS_TEOR_CARREGADO})()", teto=timeout_teor):
                 log(f'[MODELO] Teor do preview não confirmado em {timeout_teor}s ({rotulo} tentativa) — fechando e refazendo')
+                try:
+                    if hasattr(driver, 'page'):
+                        driver.page.keyboard.press('Escape')
+                except Exception:
+                    pass
                 aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='sumir', timeout=5)
                 continue
 
@@ -358,15 +536,19 @@ def inserir_modelo_no_editor(
                 btn_inserir = wait_for_clickable(driver, _SEL_BTN_INSERIR_CSS, timeout=5)
             if not btn_inserir:
                 log(f'[MODELO] Botão Inserir não encontrado ({rotulo} tentativa) — refazendo')
+                try:
+                    if hasattr(driver, 'page'):
+                        driver.page.keyboard.press('Escape')
+                except Exception:
+                    pass
                 aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='sumir', timeout=5)
                 continue
 
-            trecho_modelo = ''
-            try:
-                if hasattr(driver, 'page'):
-                    trecho_modelo = driver.page.evaluate(_JS_TRECHO_PREVIEW) or ''
-            except Exception:
-                trecho_modelo = ''
+            if hasattr(driver, 'page'):
+                try:
+                    driver.page.evaluate(_JS_ARMAR_OBSERVER_MODELO)
+                except Exception:
+                    pass
 
             safe_click_no_scroll(driver, btn_inserir)
 
@@ -386,54 +568,41 @@ def inserir_modelo_no_editor(
                     aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='sumir', timeout=5)
                     continue
 
-            js_fechar_snack = """() => {
-                var s = document.querySelector('simple-snack-bar, snack-bar-container');
-                if (s) {
-                    var btn = s.querySelector('button');
-                    if (btn) btn.click();
-                    return true;
-                }
-                return false;
-            }"""
-            try:
-                if hasattr(driver, 'page'):
-                    driver.page.evaluate(js_fechar_snack)
-            except Exception:
-                pass
-
             conteudo_confirmado = bool(espera.ate_js(
                 driver,
-                "(%s)(%s)" % (_JS_EDITOR_COM_CONTEUDO, json.dumps(seletor_editor_alvo)),
+                "(%s)(%s, %d)" % (_JS_CONFIRMAR_INSERCAO, json.dumps(seletor_editor_alvo), len_antes),
                 teto=timeout_conteudo,
             ))
-            if conteudo_confirmado and trecho_modelo:
-                conteudo_confirmado = bool(espera.ate_js(
-                    driver,
-                    "(%s)(%s)" % (_JS_EDITOR_CONTEM_TRECHO, json.dumps(trecho_modelo)),
-                    teto=timeout_conteudo,
-                ))
-                if not conteudo_confirmado:
-                    log(f'[MODELO] Teor do modelo "{modelo_nome}" NÃO encontrado no editor '
-                        f'({rotulo} tentativa) — refazendo')
+
+            if hasattr(driver, 'page'):
+                try:
+                    snack_confirmado = bool(driver.page.evaluate(_JS_DESARMAR_OBSERVER_MODELO))
+                except Exception:
+                    snack_confirmado = False
+            _fechar_snack()
+
             if conteudo_confirmado:
-                # Reconfirma após breve assentamento (dentro do loop de retry): se
-                # algum carregamento tardio zerar o editor, reinserimos sem abortar.
+                # Devolve o foco ao editor-alvo (padrão gigs-plugin aaDespacho) e reconfirma
+                # após breve assentamento antes de liberar para o Salvar.
+                _focar_editor_alvo(driver)
                 espera.assentar(driver, 0.3, motivo='reconfirmação pós-inserção do modelo')
                 if editor_tem_conteudo(driver, seletor_editor_alvo):
                     break
                 log(f'[MODELO] Editor-alvo esvaziou durante estabilização ({rotulo} tentativa) — reinserindo "{modelo_nome}"')
                 conteudo_confirmado = False
                 continue
+
             log(f'[MODELO] Conteúdo do modelo "{modelo_nome}" NÃO confirmado no editor-alvo '
                 f'({seletor_editor_alvo}) após {timeout_conteudo}s ({rotulo} tentativa) — refazendo')
 
         if not conteudo_confirmado:
-            log(f'[MODELO] Conteúdo do modelo "{modelo_nome}" não entrou no editor após 3 tentativas')
+            log(f'[MODELO] Conteúdo do modelo "{modelo_nome}" não entrou no editor após 2 tentativas')
             return False
 
+        len_depois = _medir_total_editores(driver, seletor_editor_alvo)
         log(
             f'[MODELO] Modelo "{modelo_nome}" inserido e confirmado no editor-alvo '
-            f'(trecho_verificado={bool(trecho_modelo)})'
+            f'(len {len_antes}->{len_depois}, snack={snack_confirmado})'
         )
         return True
     except Exception as e:

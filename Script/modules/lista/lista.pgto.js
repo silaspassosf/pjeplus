@@ -14,19 +14,27 @@ async function _pgGet(url) {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${url}`);
     return JSON.parse(await resp.text());
 }
-// Nomes que contam como match na descrição do mandado de pagamento:
-// autor, advogado do autor e perito. Outros não.
+// Nomes que contam como match na conferência de alvarás:
+// - ativos: autor, advogado do autor e perito (exigem registro de pagamento)
+// - passivos: reclamada(s) e seus advogados (devolução/levantamento — não é pagamento ao credor)
 async function _pgNomesConferencia() {
     const m = location.pathname.match(/\/processo\/(\d+)/);
-    if (!m) return [];
+    if (!m) return { ativos: [], passivos: [] };
     const base = location.origin + '/pje-comum-api/api/processos/id/' + m[1];
-    const nomes = [];
+    const ativos = [];
+    const passivos = [];
     try {
         const partes = await _pgGet(base + '/partes');
         for (const p of ((partes && partes.ATIVO) || [])) {
-            if (p && p.nome) nomes.push({ nome: p.nome, papel: 'Autor' });
+            if (p && p.nome) ativos.push({ nome: p.nome, papel: 'Autor' });
             for (const r of ((p && p.representantes) || [])) {
-                if (r && r.nome) nomes.push({ nome: r.nome, papel: 'Advogado do autor' });
+                if (r && r.nome) ativos.push({ nome: r.nome, papel: 'Advogado do autor' });
+            }
+        }
+        for (const p of ((partes && partes.PASSIVO) || [])) {
+            if (p && p.nome) passivos.push({ nome: p.nome, papel: 'Reclamada' });
+            for (const r of ((p && p.representantes) || [])) {
+                if (r && r.nome) passivos.push({ nome: r.nome, papel: 'Advogado da reclamada' });
             }
         }
     } catch (e) { console.warn('[pgto] partes indisponíveis:', e.message); }
@@ -34,10 +42,10 @@ async function _pgNomesConferencia() {
         const peritos = await _pgGet(base + '/peritos');
         for (const p of (Array.isArray(peritos) ? peritos : [])) {
             const nome = typeof p === 'string' ? p : (p && (p.nome || (p.pessoa && p.pessoa.nome)));
-            if (nome) nomes.push({ nome, papel: 'Perito' });
+            if (nome) ativos.push({ nome, papel: 'Perito' });
         }
     } catch (e) { console.warn('[pgto] peritos indisponíveis:', e.message); }
-    return nomes;
+    return { ativos, passivos };
 }
 
 const _pgNormNome = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
@@ -82,24 +90,94 @@ function _pgDataNum(d) {
 const _pgBenefCache = new Map(); // uid -> resultado da extração
 window.__pgtoBenefLog = [];
 
+function _pgLimparNomeExtraido(s) {
+    return (s || '')
+        .replace(/(?:nome\s+do\s+autor|cpf|cnpj|oab|pis|ctps|endere[cç]o)\b.*$/i, '')
+        .replace(/\bou\s+seu\s+procurador.*$/i, '')
+        .replace(/\ba\s+(levantar|receber|sacar)\b.*$/i, '')
+        .replace(/\s{2,}.*$/, '')
+        .replace(/^[\s,.:;\-]+|[\s,.:;\-]+$/g, '')
+        .trim();
+}
+
+function _pgAnalisarConteudoAlvara(bruto) {
+    const texto = String(bruto || '').replace(/\u00a0/g, ' ');
+    const norm = texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    // 1) Detecta alvará de saque de FGTS / seguro-desemprego (não é alvará de pagamento judicial)
+    const temFgtsOuSd =
+        /alvara\s+para\s+saque\s+do\s+fgts/.test(norm) ||
+        /recebimento\s+do\s+seguro[\s-]+desemprego/.test(norm) ||
+        /saque\s+do\s+fgts/.test(norm) ||
+        (/conta\s+vinculada\s+do\s+fgts/.test(norm) && /seguro[\s-]+desemprego/.test(norm)) ||
+        (/libera[cç]ao\s+do\s+fgts|levantamento\s+do\s+fgts/.test(norm) && !/deposito\s+judicial\s+trabalhista/.test(norm));
+
+    // 2) Extrai beneficiário/favorecido em múltiplos formatos (SISCONDJ, alvará HTML clássico, FGTS/SD)
+    let beneficiario = null;
+    const padroesBenef = [
+        /benefici[áa]rio[s]?\s*[:\-]\s*([^\n]{3,110})/i,
+        /autorizo\s+o\(a\)\s+sr\(a\)\.?\s+([^\n]{3,140}?)(?=\s+(?:cpf|cnpj|ou\s+seu|a\s+levantar|a\s+receber|a\s+sacar)|\n|$)/i,
+        /favorecido\s*[:\-]\s*([^\n]{3,110})/i,
+        /em\s+favor\s+de\s+([^\n]{3,110}?)(?=\s+(?:cpf|cnpj|oab|,|\.)|\n|$)/i,
+    ];
+    for (const rx of padroesBenef) {
+        const m = texto.match(rx);
+        if (m && m[1]) {
+            const limpo = _pgLimparNomeExtraido(m[1]);
+            if (limpo.length >= 3) {
+                beneficiario = limpo;
+                break;
+            }
+        }
+    }
+
+    // 3) Extrai valor monetário do próprio alvará (quando não for FGTS/SD)
+    let valor = null;
+    if (!temFgtsOuSd) {
+        const padroesVal = [
+            /levantar\s+o\s+importe\s+de\s+R\$\s*([\d.]+,\d{2})/i,
+            /valor\s+(?:total|l[ií]quido|principal|a\s+liberar)\s*[:\-]?\s*R\$\s*([\d.]+,\d{2})/i,
+            /R\$\s*([\d.]+,\d{2})/i,
+        ];
+        for (const rx of padroesVal) {
+            const m = texto.match(rx);
+            if (m && m[1]) {
+                valor = m[1];
+                break;
+            }
+        }
+    }
+
+    return {
+        ehFgtsSeguro: temFgtsOuSd,
+        beneficiario,
+        valor,
+    };
+}
+
 async function _pgBeneficiario(alv) {
     if (_pgBenefCache.has(alv.id)) return _pgBenefCache.get(alv.id);
     let res;
     try {
         if (typeof window.pjeExtrairApi !== 'function') {
-            res = { beneficiario: null, ok: false, erro: 'pjeExtrairApi indisponível' };
+            res = { beneficiario: null, ehFgtsSeguro: false, valor: null, ok: false, erro: 'pjeExtrairApi indisponível' };
         } else {
             const ext = await window.pjeExtrairApi(alv.id);
             if (ext && ext.sucesso && ext.conteudo_bruto) {
-                const m = ext.conteudo_bruto.match(/benefici[áa]rio[s]?\s*[:\-]?\s*([^\n]{3,90})/i);
-                res = { beneficiario: m ? m[1].replace(/\s{2,}.*$/, '').trim() : null, ok: !!m,
-                    erro: m ? null : 'campo Beneficiário não encontrado no PDF' };
+                const analise = _pgAnalisarConteudoAlvara(ext.conteudo_bruto);
+                res = {
+                    beneficiario: analise.beneficiario,
+                    ehFgtsSeguro: analise.ehFgtsSeguro,
+                    valor: analise.valor,
+                    ok: !!(analise.beneficiario || analise.ehFgtsSeguro),
+                    erro: (analise.beneficiario || analise.ehFgtsSeguro) ? null : 'beneficiário não encontrado no documento'
+                };
             } else {
-                res = { beneficiario: null, ok: false, erro: (ext && (ext.erro || ext.aviso)) || 'extração sem conteúdo' };
+                res = { beneficiario: null, ehFgtsSeguro: false, valor: null, ok: false, erro: (ext && (ext.erro || ext.aviso)) || 'extração sem conteúdo' };
             }
         }
     } catch (e) {
-        res = { beneficiario: null, ok: false, erro: e.message };
+        res = { beneficiario: null, ehFgtsSeguro: false, valor: null, ok: false, erro: e.message };
     }
     console.log('[pgto][beneficiario]', alv.id, JSON.stringify(res));
     _pgBenefCache.set(alv.id, res);
@@ -108,12 +186,21 @@ async function _pgBeneficiario(alv) {
 
 const _PG_ORGAOS = /(inss|instituto nacional do seguro social|\buniao\b|darf|\bgps\b|fazenda nacional|receita federal)/i;
 
-function _pgClassificaBeneficiario(benef, nomesConf) {
-    if (!benef) return { conta: true, motivo: 'desconhecido' };
-    if (_PG_ORGAOS.test(benef)) return { conta: true, motivo: 'órgão (INSS/UNIÃO/DARF/GPS)' };
-    const quem = _pgNomeMatch(benef, nomesConf);
-    if (quem) return { conta: true, motivo: quem.papel };
-    return { conta: false, motivo: 'não listado' };
+function _pgClassificaBeneficiario(infoExt, nomesConf) {
+    const ativos = Array.isArray(nomesConf) ? nomesConf : ((nomesConf && nomesConf.ativos) || []);
+    const passivos = Array.isArray(nomesConf) ? [] : ((nomesConf && nomesConf.passivos) || []);
+    const benef = infoExt && infoExt.beneficiario;
+
+    if (infoExt && infoExt.ehFgtsSeguro) {
+        return { conta: false, categoria: 'fgts_sd', motivo: 'Não é pagamento (FGTS / Seguro-Desemprego)' };
+    }
+    if (!benef) return { conta: true, categoria: 'desconhecido', motivo: 'desconhecido' };
+    if (_PG_ORGAOS.test(benef)) return { conta: true, categoria: 'orgao', motivo: 'órgão (INSS/UNIÃO/DARF/GPS)' };
+    const quemAtivo = _pgNomeMatch(benef, ativos);
+    if (quemAtivo) return { conta: true, categoria: 'pagamento', motivo: quemAtivo.papel };
+    const quemPassivo = _pgNomeMatch(benef, passivos);
+    if (quemPassivo) return { conta: false, categoria: 'reclamada', motivo: 'Reclamada (não pagamento)' };
+    return { conta: false, categoria: 'outro', motivo: 'não listado no polo ativo' };
 }
 
 // ── Dialog de controle (não-modal, arrastável) ─────────────────
@@ -234,13 +321,16 @@ function _pgRenderDialog(saidaPgto, st) {
             }
             tr.appendChild(td);
         });
-        tr.title = 'Clique para destacar o documento na timeline';
-        tr.onclick = () => {
-            const el = resolverElemento(d);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.classList.add('pjetools-destaque');
-                setTimeout(() => el?.classList.remove('pjetools-destaque'), 3000);
+        tr.title = 'Clique para focar e selecionar o documento na timeline';
+        tr.onclick = (e) => {
+            e.stopPropagation();
+            if (typeof window._selecionarDocTimeline === 'function') {
+                window._selecionarDocTimeline(d);
+            } else {
+                const el = resolverElemento(d) || encontrarElementoPorUid(d.id, d.idDoc);
+                if (el && typeof window._scrollElementoNaTimeline === 'function') {
+                    window._scrollElementoNaTimeline(el, false);
+                }
             }
         };
         tbody.appendChild(tr);
@@ -296,17 +386,20 @@ window.executarPgto = async function () {
     // Cada mandado com nome = autor/perito/advogado do autor exige que o próximo
     // alvará válido depois dele esteja registrado (proximidade OU valor igual).
     const nomesConf = await _pgNomesConferencia();
+    const nomesAtivos = nomesConf.ativos || [];
 
-    // Classificação por beneficiário do PDF (42(1) / Documento Diverso).
-    // Alvará só exige registro se beneficiário = autor/perito/advogado do autor
-    // ou órgão (INSS/UNIÃO/DARF/GPS). Outros: fora da contagem, logados p/ ajuste.
-    const classif = new Map(); // alv.id -> { conta, motivo, beneficiario, erro }
+    // Classificação por conteúdo/beneficiário do documento (HTML ou PDF).
+    // - FGTS / Seguro-Desemprego: não é alvará de pagamento (fora da contagem).
+    // - Reclamada / advogado da reclamada: não é pagamento ao credor (consta na lista como Reclamada, fora da contagem).
+    // - Autor / advogado do autor / perito / órgão (INSS/UNIÃO/DARF/GPS): exige conferência de registro.
+    window.__pgtoBenefLog = [];
+    const classif = new Map(); // alv.id -> { conta, categoria, motivo, beneficiario, valor, erro }
     for (const alv of alvaras) {
         const r = await _pgBeneficiario(alv);
-        const c = _pgClassificaBeneficiario(r.beneficiario, nomesConf);
-        classif.set(alv.id, { ...c, beneficiario: r.beneficiario, erro: r.erro });
+        const c = _pgClassificaBeneficiario(r, nomesConf);
+        classif.set(alv.id, { ...c, beneficiario: r.beneficiario, valor: r.valor, erro: r.erro });
         window.__pgtoBenefLog.push({ uid: alv.id, data: alv.data, beneficiario: r.beneficiario,
-            conta: c.conta, motivo: c.motivo, erro: r.erro });
+            valor: r.valor, categoria: c.categoria, conta: c.conta, motivo: c.motivo, erro: r.erro });
     }
     const alvarasContam = alvaras.filter(a => classif.get(a.id).conta);
     const alvarasFora = alvaras.filter(a => !classif.get(a.id).conta);
@@ -318,7 +411,7 @@ window.executarPgto = async function () {
     for (const mand of mandados) {
         const parsed = _pgParseMandado(mand);
         if (!parsed || !parsed.nome || !parsed.valor) continue;
-        if (!_pgNomeMatch(parsed.nome, nomesConf)) continue;
+        if (!_pgNomeMatch(parsed.nome, nomesAtivos)) continue;
         const dMand = _pgDataNum(mand.data);
         const alvo = alvarasOrd.find(a => !valorEsperado.has(a.id) && _pgDataNum(a.data) >= dMand);
         if (alvo) valorEsperado.set(alvo.id, parsed.valor);
@@ -346,24 +439,32 @@ window.executarPgto = async function () {
             }
         }
 
-        // Fora da lista de beneficiários: sem registro esperado (mas logado)
+        // Fora da lista de pagamento ao credor: FGTS/Seguro-Desemprego ou Reclamada
         const info = classif.get(alv.id);
         if (info && !info.conta) {
+            let labelFora;
+            if (info.categoria === 'fgts_sd') {
+                labelFora = '⚪ Não é pagamento (FGTS / Seguro-Desemprego)';
+            } else if (info.categoria === 'reclamada') {
+                labelFora = '⚪ Reclamada — não pagamento';
+            } else {
+                labelFora = `⚪ Sem registro esperado (${info.motivo})`;
+            }
             saidaPgto.push({
                 ...alv,
-                _label: `⚪ ${info.beneficiario || '?'} — sem registro esperado (${info.motivo})`,
+                _label: labelFora,
                 registrado: false,
                 _semRegistro: true,
                 _benef: info.beneficiario,
                 _motivo: info.motivo,
                 _erroExtra: info.erro,
-                _valor: null
+                _valor: info.valor || null
             });
             continue;
         }
 
-        // Match de registro por valor (quando há mandado associado com autor conhecido)
-        const valorEsp = valorEsperado.get(alv.id);
+        // Match de registro por valor (mandado associado ou valor extraído do próprio alvará)
+        const valorEsp = valorEsperado.get(alv.id) || (info && info.valor) || null;
         if (!registrado && valorEsp) {
             registrado = movimentos.some(mv => {
                 const t = mv.textContent || '';

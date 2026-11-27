@@ -379,16 +379,10 @@ return null;
 
 _JS_SELECIONAR_NODO_FILTRADO = r"""
 const alvoNorm = arguments[0] || '';
-const clicarPai = !!arguments[1];
+const clicarPai = arguments[1] !== false;
 const norm = (t) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 const escopo = document.querySelector('pje-arvore-modelo-documento') || document;
-const todosNodos = Array.from(escopo.querySelectorAll('span.nodo-filtrado, .nodo-filtrado'));
-const ehPasta = (n) => {
-    const wrap = n.closest('.node-content-wrapper, mat-tree-node, li') || n.parentElement;
-    return !!(wrap && wrap.querySelector('i.fa-folder, i.fa-folder-open') && !wrap.querySelector('i.fa-file'));
-};
-const nodosArquivo = todosNodos.filter(n => !ehPasta(n));
-const nodos = nodosArquivo.length > 0 ? nodosArquivo : todosNodos;
+const nodos = Array.from(escopo.querySelectorAll('span.nodo-filtrado, .nodo-filtrado'));
 if (nodos.length > 0) {
     let escolhido = null;
     if (alvoNorm) {
@@ -516,12 +510,6 @@ def _selecionar_modelo_gigs(
                 el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));
                 el.blur();
             """, campo_filtro, modelo_nome)
-            espera.assentar(driver, 0.25, 'aguardando filtro de modelo iniciar na árvore')
-            espera.ate_sumir(
-                driver,
-                'pje-arvore-modelo-documento i[class*="fa-spinner"], pje-arvore-modelo-documento mat-progress-spinner, mat-progress-bar',
-                teto=6,
-            )
 
         _aplicar_filtro(modelo)
 
@@ -535,7 +523,7 @@ def _selecionar_modelo_gigs(
             if tentativa > 1:
                 _fechar_dialogo_preview(driver)
                 _focar_editor_alvo(driver)
-                estado_antes = _ler_estado_editor_principal(driver, timeout=1.5)
+                estado_antes = _ler_estado_editor_principal(driver, timeout=1.0)
                 len_antes = int(estado_antes.get('len', 0) or 0)
                 texto_antes = estado_antes.get('texto', '') or ''
                 _aplicar_filtro(modelo)
@@ -544,7 +532,8 @@ def _selecionar_modelo_gigs(
             limite_nodo = time.monotonic() + 6.0
             while time.monotonic() < limite_nodo:
                 try:
-                    res = _executar_js(driver, _JS_SELECIONAR_NODO_FILTRADO, modelo_norm, False)
+                    # Padrão gigs-plugin.js (buscandoModeloNaArvore): clicar direto no parentElement.parentElement
+                    res = _executar_js(driver, _JS_SELECIONAR_NODO_FILTRADO, modelo_norm, True)
                     if isinstance(res, dict) and res.get('status') == 'encontrado':
                         clicou_nodo = True
                         logger.debug(
@@ -554,20 +543,20 @@ def _selecionar_modelo_gigs(
                         break
                 except Exception:
                     pass
-                espera.assentar(driver, 0.25)
+                espera.assentar(driver, 0.15)
 
             if not clicou_nodo:
                 logger.error('[JUNTADA][MODELO][ERRO] .nodo-filtrado não encontrado para "%s" (%s tentativa)', modelo, rotulo)
                 continue
 
-            dialogo_abriu = espera.ate_aparecer(driver, 'pje-dialogo-visualizar-modelo', teto=3)
+            dialogo_abriu = espera.ate_aparecer(driver, 'pje-dialogo-visualizar-modelo', teto=2.5)
             if not dialogo_abriu:
-                logger.debug('[JUNTADA][MODELO] Diálogo não abriu após clique no span; tentando container do nodo (%s tentativa)', rotulo)
+                logger.debug('[JUNTADA][MODELO] Diálogo não abriu após clique no container; tentando span (%s tentativa)', rotulo)
                 try:
-                    _executar_js(driver, _JS_SELECIONAR_NODO_FILTRADO, modelo_norm, True)
+                    _executar_js(driver, _JS_SELECIONAR_NODO_FILTRADO, modelo_norm, False)
                 except Exception:
                     pass
-                dialogo_abriu = espera.ate_aparecer(driver, 'pje-dialogo-visualizar-modelo', teto=6)
+                dialogo_abriu = espera.ate_aparecer(driver, 'pje-dialogo-visualizar-modelo', teto=4)
 
             if not dialogo_abriu:
                 logger.warning('[JUNTADA][MODELO] Diálogo pje-dialogo-visualizar-modelo não abriu (%s tentativa)', rotulo)
@@ -576,9 +565,8 @@ def _selecionar_modelo_gigs(
             espera.ate_sumir(
                 driver,
                 'pje-dialogo-visualizar-modelo mat-progress-bar, pje-dialogo-visualizar-modelo mat-progress-spinner',
-                teto=8,
+                teto=6,
             )
-            espera.assentar(driver, 0.4, motivo='PJe estabilizando teor do modelo no diálogo')
 
             if not espera.ate_js(driver, f"(function(){{{_JS_TEOR_PREVIEW}}})()", teto=timeout_teor):
                 logger.warning('[JUNTADA][MODELO] Teor do preview não confirmado em %ss (%s tentativa) — fechando e refazendo', timeout_teor, rotulo)
@@ -590,39 +578,32 @@ def _selecionar_modelo_gigs(
             except Exception:
                 trecho_modelo = ''
 
-            btn_inserir = _localizar_botao_inserir_modelo(driver, timeout=10.0)
+            btn_inserir = _localizar_botao_inserir_modelo(driver, timeout=5.0)
             if not btn_inserir:
                 logger.error('[JUNTADA][MODELO][ERRO] Botão "Inserir modelo de documento" não encontrado (%s tentativa)', rotulo)
                 _fechar_dialogo_preview(driver)
                 continue
 
-            clicou_inserir = False
             try:
-                clicou_inserir = bool(safe_click_no_scroll(driver, btn_inserir))
+                _executar_js(driver, """
+                    const b = arguments[0];
+                    b.scrollIntoView({block: 'center', behavior: 'instant'});
+                    b.focus();
+                    b.click();
+                """, btn_inserir)
             except Exception:
-                clicou_inserir = False
-            if not clicou_inserir:
-                try:
-                    _executar_js(driver, """
-                        const b = arguments[0];
-                        b.scrollIntoView({block: 'center', behavior: 'instant'});
-                        b.focus();
-                        b.click();
-                    """, btn_inserir)
-                    clicou_inserir = True
-                except Exception as e_clk:
-                    logger.warning('[JUNTADA][MODELO] Falha ao clicar em Inserir (%s tentativa): %s', rotulo, e_clk)
+                safe_click_no_scroll(driver, btn_inserir)
 
             logger.debug('[JUNTADA][MODELO] Clique em Inserir modelo realizado (%s tentativa)', rotulo)
 
-            if not aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=12):
+            if not aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=8):
                 logger.warning('[JUNTADA][MODELO] Diálogo não fechou após Inserir (%s tentativa) — repetindo clique JS', rotulo)
                 try:
-                    btn_retry = _localizar_botao_inserir_modelo(driver, timeout=2.0) or btn_inserir
+                    btn_retry = _localizar_botao_inserir_modelo(driver, timeout=1.5) or btn_inserir
                     _executar_js(driver, "arguments[0].focus(); arguments[0].click();", btn_retry)
                 except Exception:
                     pass
-                if not aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=8):
+                if not aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=6):
                     logger.warning('[JUNTADA][MODELO] Inserir não fechou o diálogo (%s tentativa) — fechando e refazendo', rotulo)
                     _fechar_dialogo_preview(driver)
                     continue
@@ -636,7 +617,7 @@ def _selecionar_modelo_gigs(
                 except Exception:
                     pass
 
-                st = _ler_estado_editor_principal(driver, timeout=0.6)
+                st = _ler_estado_editor_principal(driver, timeout=0.4)
                 estado_depois = st
                 len_depois = int(st.get('len', 0) or 0)
                 texto_depois = st.get('texto', '') or ''
@@ -652,7 +633,7 @@ def _selecionar_modelo_gigs(
                         modelo_carregado = True
                         break
 
-                espera.assentar(driver, 0.3)
+                espera.assentar(driver, 0.15)
 
             if modelo_carregado:
                 break
@@ -668,7 +649,7 @@ def _selecionar_modelo_gigs(
             return False
 
         _focar_editor_alvo(driver)
-        espera.assentar(driver, 0.5, motivo='estabilização pós-inserção do modelo')
+        espera.assentar(driver, 0.2, motivo='estabilização pós-inserção do modelo')
 
         logger.info(
             '[JUNTADA][MODELO] Modelo "%s" inserido e confirmado no editor principal (len %d -> %d)',
@@ -848,33 +829,20 @@ def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir
 
 
 def _salvar_documento(self) -> bool:
-    """Salva documento com confirmação efetiva no PJe."""
+    """Salva documento com confirmação efetiva no PJe (padrão aaAnexar)."""
     driver = self.driver
     logger.info('[JUNTADA][SALVAR] Iniciando salvamento do documento...')
 
-    # 1. Sincronização do editor principal com o Angular
-    ed_salvar = _obter_editor_principal(driver, timeout=2.0)
-    if ed_salvar:
-        _executar_js(driver, """
-            const ed = arguments[0];
-            if (ed) {
-                const ck = ed.ckeditorInstance || (ed.closest('.ck-editor') && ed.closest('.ck-editor').ckeditorInstance);
-                try { if (ck && typeof ck.updateSourceElement === 'function') ck.updateSourceElement(); } catch (e) {}
-                ed.dispatchEvent(new Event('input', { bubbles: true }));
-                ed.dispatchEvent(new Event('change', { bubbles: true }));
-                if (document.activeElement === ed) ed.blur();
-            }
-            // Descarta snackbars anteriores para evitar falso positivo de "salvo"
-            // (comportamento do motor pre-refatoracao: um aviso velho do modelo
-            // inserido confirmava o save antes de ele acontecer).
-            const oldSnacks = document.querySelectorAll('simple-snack-bar, snack-bar-container');
-            oldSnacks.forEach(snack => {
-                const btn = snack.querySelector('button');
-                if (btn) btn.click();
-                else snack.remove();
-            });
-        """, ed_salvar)
-    espera.assentar(driver, 0.5, 'sincronizacao do editor antes de salvar')
+    # Descarta snackbars anteriores para evitar falso positivo de "salvo"
+    # sem disparar input/change/blur artificiais no CKEditor (que causam limpeza visual pos-save).
+    _executar_js(driver, """
+        const oldSnacks = document.querySelectorAll('simple-snack-bar, snack-bar-container');
+        oldSnacks.forEach(snack => {
+            const btn = snack.querySelector('button');
+            if (btn) btn.click();
+            else snack.remove();
+        });
+    """)
 
     _SEL_SALVAR = 'button[aria-label="Salvar"]'
     espera.ate_habilitar(driver, _SEL_SALVAR, teto=8)
@@ -902,6 +870,13 @@ def _salvar_documento(self) -> bool:
                 return { status: 'sucesso', msg: txt };
             }
         }
+        var btnSalvar = document.querySelector('button[aria-label="Salvar"]');
+        var btnAssinar = document.querySelector('button[aria-label="Assinar documento e juntar ao processo"], button[aria-label*="Assinar"]');
+        var salvarDesab = !btnSalvar || btnSalvar.disabled || btnSalvar.getAttribute('aria-disabled') === 'true';
+        var assinarHabil = !!(btnAssinar && !btnAssinar.disabled && btnAssinar.getAttribute('aria-disabled') !== 'true');
+        if (salvarDesab && assinarHabil) {
+            return { status: 'sucesso_estado', msg: 'Salvar desabilitado + Assinar habilitado' };
+        }
         return { status: 'pendente' };
     }"""
 
@@ -910,50 +885,21 @@ def _salvar_documento(self) -> bool:
     while time.monotonic() < limite_confirmacao:
         res = _executar_js(driver, f"return ({js_verificar_salvamento})();")
         if isinstance(res, dict):
-            if res.get('status') == 'erro':
+            st = res.get('status')
+            if st == 'erro':
                 logger.error('[JUNTADA][SALVAR][ERRO] Salvamento rejeitado pelo PJe: %s', res.get('msg'))
                 return False
-            if res.get('status') == 'sucesso':
-                logger.info('[JUNTADA][SALVAR] Sucesso confirmado via snackbar: "%s"', res.get('msg', '').strip().replace('\\n', ' '))
+            if st in ('sucesso', 'sucesso_estado'):
+                logger.info('[JUNTADA][SALVAR] Sucesso confirmado (%s): "%s"', st, res.get('msg', '').strip().replace('\n', ' '))
                 salvo = True
                 break
-        espera.assentar(driver, 0.4)
-
-    if not salvo:
-        btn_ainda_ativo = _executar_js(driver, """
-            const btn = document.querySelector('button[aria-label="Salvar"]');
-            return !!(btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true');
-        """)
-        if btn_ainda_ativo:
-            logger.warning('[JUNTADA][SALVAR] Documento ainda não salvo após 10s, executando retry do clique...')
-            click_headless_safe(driver, _SEL_SALVAR, timeout=4)
-            espera.ate_sumir(driver, 'mat-progress-bar, mat-progress-spinner', teto=10)
-            limite_retry = time.monotonic() + 6.0
-            while time.monotonic() < limite_retry:
-                res = _executar_js(driver, f"return ({js_verificar_salvamento})();")
-                if isinstance(res, dict) and res.get('status') == 'sucesso':
-                    logger.info('[JUNTADA][SALVAR] Sucesso confirmado após retry: "%s"', res.get('msg'))
-                    salvo = True
-                    break
-                espera.assentar(driver, 0.4)
-
-    if not salvo:
-        js_estado_pos_salvar = """() => {
-            var btnSalvar = document.querySelector('button[aria-label="Salvar"]');
-            var btnAssinar = document.querySelector('button[aria-label="Assinar documento e juntar ao processo"], button[aria-label*="Assinar"]');
-            var salvarDesab = !btnSalvar || btnSalvar.disabled || btnSalvar.getAttribute('aria-disabled') === 'true';
-            var assinarHabil = btnAssinar && !btnAssinar.disabled && btnAssinar.getAttribute('aria-disabled') !== 'true';
-            return salvarDesab && assinarHabil;
-        }"""
-        if bool(_executar_js(driver, f"return ({js_estado_pos_salvar})();")):
-            logger.info('[JUNTADA][SALVAR] Salvo confirmado via estado de transição (Salvar inativo + Assinar habilitado)')
-            salvo = True
+        espera.assentar(driver, 0.2)
 
     if not salvo:
         logger.error('[JUNTADA][SALVAR][ERRO] Não houve confirmação de salvamento do documento — abortando juntada')
         return False
 
-    espera.assentar(driver, 1.5, 'estabilizacao pos-salvamento da juntada')
+    espera.assentar(driver, 0.3, 'estabilizacao pos-salvamento da juntada')
     logger.info('[JUNTADA][SALVAR] Documento salvo com sucesso e persistido')
     return True
 

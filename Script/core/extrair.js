@@ -409,9 +409,35 @@
           let dados = null;
           try { dados = JSON.parse(texto); } catch (_) { dados = null; }
           if (dados) {
+            if (typeof dados.conteudoBase64 === 'string' && dados.conteudoBase64.trim().length > 10) {
+              try {
+                const binStr = atob(dados.conteudoBase64.replace(/\s+/g, ''));
+                const bytes = new Uint8Array(binStr.length);
+                for (let bi = 0; bi < binStr.length; bi++) bytes[bi] = binStr.charCodeAt(bi);
+                if (bytes.length >= 4 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) {
+                  return { tipo: 'pdf-buffer', conteudo: bytes.buffer };
+                }
+                let dec = '';
+                try {
+                  dec = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+                } catch (_) {
+                  dec = new TextDecoder('windows-1252').decode(bytes);
+                }
+                if (/<(?:html|body|div|p|table|style|span)[\s>]/i.test(dec)) {
+                  return { tipo: 'html', conteudo: dec };
+                }
+                return { tipo: 'text', conteudo: dec };
+              } catch (eB64) {
+                console.warn('[pjeExtrairApi] Falha ao decodificar conteudoBase64:', eB64);
+              }
+            }
             const conteudo = dados.conteudo ?? dados.conteudoHtml ?? dados.html ?? dados.texto ?? dados.conteudoTexto ?? dados.documento ?? null;
             if (conteudo !== null && conteudo !== undefined) {
-              return { tipo: 'json', conteudo: String(conteudo) };
+              const s = String(conteudo);
+              if (/<(?:html|body|div|p|table)[\s>]/i.test(s)) {
+                return { tipo: 'html', conteudo: s };
+              }
+              return { tipo: 'json', conteudo: s };
             }
             // Mantém o JSON inteiro para o parser posterior
             return { tipo: 'json-raw', conteudo: texto };
@@ -567,9 +593,13 @@
   }
 
   function _apiStripHtml(html) {
+    var comQuebras = String(html || '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|tr|li|h[1-6]|td|th)>/gi, '\n</$1>');
     var tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    return (tmp.innerText || tmp.textContent || '').trim();
+    tmp.innerHTML = comQuebras;
+    tmp.querySelectorAll('style, script').forEach(function (n) { n.remove(); });
+    return (tmp.innerText || tmp.textContent || '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   }
 
   async function _extrairApi(docId, opts) {

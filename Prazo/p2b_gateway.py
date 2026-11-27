@@ -418,12 +418,27 @@ def _preencher_credito_mock_js(driver: Any, valor: str, placeholder: str = 'Cré
     return True
 
 
-def registrar_credito_mock_0_01(driver: Any, id_processo: str) -> bool:
+def registrar_credito_mock_0_01(driver: Any, id_processo: str, ignorar_se_ja_existe: bool = True) -> bool:
     """Registra R$ 0,01 como crédito do demandante (obrigação de pagar)."""
     from urllib.parse import urlparse
     from datetime import datetime
     from Fix.browser_suporte import abrir_url_nova_aba, forcar_fechamento_abas_extras
     from Fix.core import safe_click_no_scroll, preencher_campo
+
+    if ignorar_se_ja_existe and id_processo:
+        try:
+            client = cliente_para(driver)
+            obrigacoes = client.obrigacoes_pagar(str(id_processo))
+            if isinstance(obrigacoes, list) and any(
+                isinstance(o, dict) and o.get('ativo', True) for o in obrigacoes
+            ):
+                logger.info(
+                    '[FLUXO_PZ] credito_mock: processo %s já possui %d obrigação(ões) ativa(s) — pulando inclusão',
+                    id_processo, len(obrigacoes),
+                )
+                return True
+        except Exception as e_chk:
+            logger.debug('[FLUXO_PZ] credito_mock: checagem prévia de obrigações falhou (%s) — seguindo', e_chk)
 
     aba_principal = getattr(driver, 'current_window_handle', None)
     host = urlparse(getattr(driver, 'current_url', '') or '').netloc
@@ -437,23 +452,74 @@ def registrar_credito_mock_0_01(driver: Any, id_processo: str) -> bool:
         return False
 
     try:
-        if not espera.ate_aparecer(driver, 'table.t-class', teto=15):
+        # Pode abrir direto em table.t-class (sem obrigações) ou na listagem com botão "Incluir obrigação de pagar"
+        espera.ate_aparecer(driver, 'table.t-class, a.mat-mini-fab', teto=15)
+        if not espera.elemento(driver, 'tbody tr.tr-class', teto=2):
+            btn_inc = espera.elemento(
+                driver,
+                "//a[contains(@class,'mat-mini-fab') or contains(normalize-space(.), 'Incluir obrigação de pagar')]",
+                teto=5,
+            )
+            if btn_inc:
+                safe_click_no_scroll(driver, btn_inc)
+                espera.ate_aparecer(driver, 'tbody tr.tr-class', teto=12)
+
+        if not espera.ate_aparecer(driver, 'tbody tr.tr-class', teto=15):
             logger.warning('[FLUXO_PZ] credito_mock: tabela de partes nao apareceu')
             return False
 
-        for papel in ('Credor', 'Devedor'):
-            xpath = (
-                "//tbody//tr[contains(@class,'tr-class')]"
-                f"[.//span[contains(@class,'mat-select-min-line')][normalize-space(.)='{papel}']]"
-                "//input[@type='checkbox']"
-            )
-            checkbox = espera.elemento(driver, xpath, teto=5)
-            if checkbox:
-                safe_click_no_scroll(driver, checkbox)
-            else:
-                logger.warning('[FLUXO_PZ] credito_mock: checkbox de %s nao encontrado', papel)
+        # Marca exatamente 1 Credor e 1 Devedor (1 clique em cada mat-checkbox, só se ainda desmarcado)
+        js_marcar_partes = """() => {
+            const rows = Array.from(document.querySelectorAll('tbody tr.tr-class'));
+            const getPapel = (tr) => {
+                const s = tr.querySelector('.mat-select-min-line, mat-select');
+                return s ? s.innerText.trim() : '';
+            };
+            const res = {};
+            for (const papel of ['Credor', 'Devedor']) {
+                const candidatas = rows.filter(r => getPapel(r) === papel);
+                // Prefere a linha principal (Reclamante/Reclamado) quando houver múltiplas
+                const preferida = candidatas.find(r => {
+                    const t = (r.innerText || '').toLowerCase();
+                    return papel === 'Credor' ? t.includes('reclamante') : t.includes('reclamad');
+                }) || candidatas[0];
+                if (!preferida) {
+                    res[papel] = { ok: false, motivo: 'linha nao encontrada' };
+                    continue;
+                }
+                const cb = preferida.querySelector('input[type="checkbox"]');
+                const alvo = preferida.querySelector('label.mat-checkbox-layout')
+                    || preferida.querySelector('span.mat-checkbox-inner-container')
+                    || preferida.querySelector('mat-checkbox')
+                    || cb;
+                if (cb && !cb.checked && alvo) {
+                    alvo.click();
+                }
+                res[papel] = { ok: !!(cb && cb.checked) };
+            }
+            return res;
+        }"""
+        if hasattr(driver, 'page') and driver.page:
+            res_partes = driver.page.evaluate(js_marcar_partes) or {}
+            logger.info('[FLUXO_PZ] credito_mock: partes marcadas=%s', res_partes)
+            if not (res_partes.get('Credor', {}).get('ok') and res_partes.get('Devedor', {}).get('ok')):
+                logger.warning('[FLUXO_PZ] credito_mock: falha ao marcar Credor/Devedor: %s', res_partes)
+                return False
+        else:
+            for papel in ('Credor', 'Devedor'):
+                xpath = (
+                    "(//tbody//tr[contains(@class,'tr-class')]"
+                    f"[.//span[contains(@class,'mat-select-min-line')][normalize-space(.)='{papel}']]"
+                    "//label[contains(@class,'mat-checkbox-layout')])[1]"
+                )
+                alvo = espera.elemento(driver, xpath, teto=5)
+                if alvo:
+                    safe_click_no_scroll(driver, alvo)
+                else:
+                    logger.warning('[FLUXO_PZ] credito_mock: checkbox de %s nao encontrado', papel)
 
-        btn_proximo = espera.elemento(driver, "//button[@name='proximo']", teto=10)
+        espera.assentar(driver, 0.3, motivo='habilitacao do botao Proximo')
+        btn_proximo = espera.elemento(driver, "button[name='proximo']", teto=10)
         if not btn_proximo:
             logger.warning('[FLUXO_PZ] credito_mock: botao Proximo nao encontrado')
             return False
@@ -462,20 +528,49 @@ def registrar_credito_mock_0_01(driver: Any, id_processo: str) -> bool:
         if not espera.ate_aparecer(driver, 'input[data-placeholder="Crédito do demandante"]', teto=20):
             logger.warning('[FLUXO_PZ] credito_mock: formulario de inclusao nao abriu')
             return False
-        preencher_campo(
-            driver,
-            'input[data-placeholder="Data do Cálculo"]',
-            datetime.now().strftime('%d/%m/%Y'),
-        )
+
+        hoje_str = datetime.now().strftime('%d/%m/%Y')
+        if hasattr(driver, 'page') and driver.page:
+            try:
+                loc_data = driver.page.locator('input[data-placeholder="Data do Cálculo"]').first
+                loc_data.fill(hoje_str, timeout=5000)
+                loc_data.blur(timeout=2000)
+            except Exception:
+                preencher_campo(driver, 'input[data-placeholder="Data do Cálculo"]', hoje_str)
+        else:
+            preencher_campo(driver, 'input[data-placeholder="Data do Cálculo"]', hoje_str)
+
         if not _preencher_credito_mock_js(driver, CREDITO_MOCK):
             return False
 
-        btn_salvar = espera.elemento(driver, "//button[@name='salvar']", teto=10)
+        espera.assentar(driver, 0.3, motivo='habilitacao do botao Salvar obrigacao')
+        btn_salvar = espera.elemento(driver, "button[name='salvar']", teto=10)
         if not btn_salvar:
             logger.warning('[FLUXO_PZ] credito_mock: botao Salvar nao encontrado')
             return False
         safe_click_no_scroll(driver, btn_salvar)
-        espera.assentar(driver, 1.0, motivo='registro do credito mock')
+
+        # Aguarda modal "Verificando pagamentos cadastrados" / spinners encerrarem
+        espera.ate_sumir(
+            driver,
+            'mat-dialog-container, mat-progress-spinner, mat-progress-bar',
+            teto=20,
+        )
+        espera.assentar(driver, 1.0, motivo='confirmacao pos-salvar obrigacao')
+
+        # Confirma persistência via API /obrigacoespagar
+        try:
+            client = cliente_para(driver)
+            obrigacoes_pos = client.obrigacoes_pagar(str(id_processo))
+            if isinstance(obrigacoes_pos, list) and obrigacoes_pos:
+                logger.info(
+                    '[FLUXO_PZ] credito_mock: crédito %s confirmado via API (%d obrigação(ões), processo %s)',
+                    CREDITO_MOCK, len(obrigacoes_pos), id_processo,
+                )
+                return True
+        except Exception:
+            pass
+
         logger.info('[FLUXO_PZ] credito_mock: crédito %s registrado (processo %s)', CREDITO_MOCK, id_processo)
         return True
     except Exception as e:
@@ -484,6 +579,24 @@ def registrar_credito_mock_0_01(driver: Any, id_processo: str) -> bool:
     finally:
         if aba_principal:
             forcar_fechamento_abas_extras(driver, aba_principal)
+
+
+def registrar_credito_mock_p2b(driver: Any) -> bool:
+    """Wrapper de ação P2B: extrai id_processo da URL atual e registra obrigação de pagar R$ 0,01."""
+    id_processo = None
+    try:
+        from Fix.core import extrair_id_processo
+        id_processo = extrair_id_processo(driver)
+    except Exception:
+        pass
+    if not id_processo:
+        m = re.search(r'/processo/(\d+)', str(getattr(driver, 'current_url', '') or ''))
+        if m:
+            id_processo = m.group(1)
+    if not id_processo:
+        logger.warning('[FLUXO_PZ] credito_mock_p2b: id_processo não detectado na URL')
+        return False
+    return registrar_credito_mock_0_01(driver, str(id_processo))
 
 
 def inicar_exec(driver, texto_normalizado: Optional[str] = None):
@@ -705,8 +818,120 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
     return resultado
 
 
+def _texto_indica_arquivo(valor: Any) -> bool:
+    """True se texto de fase/tarefa indica processo arquivado (Arquivo / Arquivado / Arquivados / Desarquivar)."""
+    if not valor:
+        return False
+    norm = normalizar_texto(str(valor))
+    return (
+        'arquiv' in norm
+        or 'desarquiv' in norm
+    )
+
+
+def _item_gigs_arquivado(item: Any) -> Tuple[bool, str]:
+    """Detecta processo arquivado diretamente no payload GIGS (sem abrir o processo)."""
+    if not isinstance(item, dict):
+        return False, ''
+    proc = item.get('processo') if isinstance(item.get('processo'), dict) else {}
+    for campo, origem in (
+        (proc.get('faseProcessual'), 'faseProcessual'),
+        (proc.get('labelFaseProcessual'), 'labelFaseProcessual'),
+        (proc.get('nomeTarefa'), 'nomeTarefa'),
+        (item.get('faseProcessual'), 'item.faseProcessual'),
+        (item.get('labelFaseProcessual'), 'item.labelFaseProcessual'),
+        (item.get('nomeTarefa'), 'item.nomeTarefa'),
+    ):
+        if _texto_indica_arquivo(campo):
+            return True, f'{origem}={campo!r}'
+    for id_t in (proc.get('idTarefa'), item.get('idTarefa')):
+        try:
+            if id_t is not None and int(id_t) == 499:
+                return True, 'idTarefa=499 (Arquivo)'
+        except (TypeError, ValueError):
+            pass
+    return False, ''
+
+
+def processo_esta_arquivado_p2b(driver: Any, id_processo: Optional[str] = None) -> Tuple[bool, str]:
+    """Verifica via API (processo + tarefa mais recente) e fallback DOM se o processo está em Arquivo/Arquivados."""
+    try:
+        if not id_processo:
+            m = re.search(r'/processo/(\d+)', str(getattr(driver, 'current_url', '') or ''))
+            if m:
+                id_processo = m.group(1)
+    except Exception:
+        id_processo = None
+
+    # 1) API REST do PJe (mais confiável: faseProcessual, labelFaseProcessual e tarefas?maisRecente=true)
+    if id_processo:
+        try:
+            client = _criar_api_client(driver)
+            dados = client.processo_por_id(id_processo) or {}
+            if isinstance(dados, dict):
+                for campo, nome in (
+                    (dados.get('faseProcessual'), 'faseProcessual'),
+                    (dados.get('labelFaseProcessual'), 'labelFaseProcessual'),
+                    (dados.get('nomeTarefa'), 'nomeTarefa'),
+                ):
+                    if _texto_indica_arquivo(campo):
+                        return True, f'API {nome}={campo!r}'
+                if dados.get('arquivado') is True:
+                    return True, 'API arquivado=True'
+            resp_t = client.gateway_get(
+                f'/pje-comum-api/api/processos/id/{id_processo}/tarefas',
+                params={'maisRecente': 'true'},
+                timeout=15,
+            )
+            if isinstance(resp_t, dict) and resp_t.get('ok'):
+                t_data = resp_t.get('data')
+                t0 = t_data[0] if isinstance(t_data, list) and t_data else (t_data if isinstance(t_data, dict) else {})
+                if isinstance(t0, dict):
+                    try:
+                        if t0.get('idTarefa') is not None and int(t0.get('idTarefa')) == 499:
+                            return True, f"API idTarefa=499 ({t0.get('nomeTarefa') or 'Arquivo'})"
+                    except (TypeError, ValueError):
+                        pass
+                    if _texto_indica_arquivo(t0.get('nomeTarefa')):
+                        return True, f"API tarefa={t0.get('nomeTarefa')!r}"
+                    if _texto_indica_arquivo(t0.get('nomeRecurso')):
+                        return True, f"API recurso={t0.get('nomeRecurso')!r}"
+        except Exception as e:
+            logger.debug('[FLUXO_PZ] Checagem API de arquivo falhou (fallback DOM): %s', e)
+
+    # 2) Fallback DOM (/detalhe cabeçalho + botão de tarefa)
+    try:
+        if hasattr(driver, 'page') and driver.page:
+            dom_info = driver.page.evaluate(
+                """() => {
+                    const cab = (document.querySelector('pje-cabecalho-processo') || {}).innerText || '';
+                    const btn = (document.querySelector('.texto-tarefa-processo, button[aria-label*="tarefa" i]') || {}).innerText || '';
+                    return { cab, btn };
+                }"""
+            ) or {}
+            cab_norm = normalizar_texto(dom_info.get('cab') or '')
+            btn_norm = normalizar_texto(dom_info.get('btn') or '')
+            if 'fase: arquiv' in cab_norm or 'fase arquiv' in cab_norm:
+                return True, 'DOM cabecalho Fase: Arquivado'
+            if _texto_indica_arquivo(btn_norm):
+                return True, f"DOM tarefa={dom_info.get('btn', '').strip()!r}"
+    except Exception:
+        pass
+
+    return False, ''
+
+
 def fluxo_pz(driver: Any) -> None:
     """Processa prazos detalhados em processos abertos."""
+    eh_arq, motivo_arq = processo_esta_arquivado_p2b(driver)
+    if eh_arq:
+        logger.info('[FLUXO_PZ] Processo já em fase/tarefa de arquivo (%s) — não executando nada.', motivo_arq)
+        try:
+            _fechar_aba_processo(driver)
+        except Exception:
+            pass
+        return True
+
     resultado = extrair_documento_relevante(driver)
     if not resultado or not resultado.get('sucesso'):
         if (resultado or {}).get('sessao_expirada'):
@@ -877,6 +1102,7 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
 
     logger.info('[PRAZO_API] GIGS XS1 encontrados: %d', total_encontrado)
     itens = []
+    pulados_arquivo = 0
     for idx, item in enumerate(atividades, start=1):
         if max_processos and idx > max_processos:
             break
@@ -884,7 +1110,23 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
         if not id_processo:
             logger.warning('[PRAZO_API] Item %d sem id_processo, pulando (numero=%s)', idx, numero)
             continue
+        eh_arq, motivo_arq = _item_gigs_arquivado(item)
+        if eh_arq:
+            pulados_arquivo += 1
+            chave_arq = numero or str(id_processo)
+            logger.info(
+                '[PRAZO_API] Processo %s já arquivado (%s) — pulando sem executar nada',
+                chave_arq, motivo_arq,
+            )
+            marcar_processo_executado_p2b(chave_arq, progresso)
+            continue
         itens.append({'id': id_processo, 'numero': numero, 'chave': numero or str(id_processo)})
+
+    if pulados_arquivo:
+        logger.info('[PRAZO_API] %d processo(s) arquivado(s) ignorado(s) antes de abrir', pulados_arquivo)
+    if not itens:
+        logger.info('[PRAZO_API] Nenhum processo elegível restante após filtrar arquivados')
+        return {'sucesso': True, 'total': total_encontrado, 'processados': 0, 'falhas': 0}
 
     logger.info('[PRAZO_API] Processos a serem executados: %s', [p.get('numero') for p in itens])
 

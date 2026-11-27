@@ -101,7 +101,14 @@ URL_PROCESSO_DETALHE = 'https://pje.trt2.jus.br/pjekz/processo/{id}/detalhe'
 CHIP_ADVOGADO_IMPEDIDO_ID = 918
 
 # Tarefas / etiquetas consideradas "arquivado" (limpeza direta sem certidão/ato).
-TAREFAS_ARQUIVO = ('arquivo', 'arquivado', 'arquivados', 'arquivo definitivo')
+TAREFAS_ARQUIVO = (
+    'arquivo',
+    'arquivado',
+    'arquivados',
+    'arquivo definitivo',
+    'cartas devolvidas',
+    'carta devolvida',
+)
 
 TAMANHO_PAGINA_API = 100
 MAX_WORKERS_REPROC = 6
@@ -744,12 +751,8 @@ def anex_advdelete(driver: Any, processo_info: Dict[str, Any],
 
 def ato_regadv(driver: Any, processo_info: Dict[str, Any],
                advogado_alvo: Dict[str, Any], **kwargs: Any) -> bool:
-    """Executa o despacho `regadv` preenchendo `--` com empresa/advogado/CPF.
-
-    Chamada no Ramo 3 sempre que o advogado apagado era ATIVO em parte ATIVA e a
-    parte ficou sem outro advogado regular/ausente:
-      - com domicílio eletrônico → seleciona apenas a parte-alvo (`destinatario='alvo'`)
-      - sem domicílio eletrônico → `1//xs dec adv` criado antes + `ato_regadv`
+    """Executa o despacho `regadv` quando a parte-alvo TEM domicílio eletrônico
+    (`destinatario='alvo'`, `Assinar=True`).
     """
     from atos.wrappers_ato import ato_regadv as _ato_regadv_wrapper
 
@@ -766,6 +769,22 @@ def ato_regadv(driver: Any, processo_info: Dict[str, Any],
     if alvos and 'destinatarios_alvo' not in kwargs:
         kwargs['destinatarios_alvo'] = alvos
     res = _ato_regadv_wrapper(driver, vinculos=vinculos, **kwargs)
+    if isinstance(res, tuple):
+        return bool(res[0])
+    return bool(res)
+
+
+def ato_regadv2(driver: Any, processo_info: Dict[str, Any],
+                advogado_alvo: Dict[str, Any], **kwargs: Any) -> bool:
+    """Executa o despacho `regadv` quando a parte-alvo NÃO tem domicílio eletrônico
+    (`intimar=False`, `Assinar=True`, após GIGS `1,,xs dec adv`).
+    """
+    from atos.wrappers_ato import ato_regadv2 as _ato_regadv2_wrapper
+
+    vinculos = list(processo_info.get('vinculos_removidos') or [])
+    if not vinculos and advogado_alvo:
+        vinculos = [advogado_alvo]
+    res = _ato_regadv2_wrapper(driver, vinculos=vinculos, **kwargs)
     if isinstance(res, tuple):
         return bool(res[0])
     return bool(res)
@@ -1590,18 +1609,60 @@ def _parte_tem_domicilio_eletronico(client: Any, vinculo: Dict[str, Any]) -> boo
     return dom_flag is True
 
 
+def _eh_tarefa_instancia_superior(tarefa_nome: Any) -> bool:
+    """True para tarefa 197 ('Aguardando apreciação pela instância superior')."""
+    t = _texto_normalizado(tarefa_nome)
+    return 'instancia superior' in t
+
+
+def _formatar_obs_gigs_197(vinculos: Optional[List[Dict[str, Any]]],
+                           advogado_alvo: Optional[Dict[str, Any]] = None) -> str:
+    """Formata a observação do GIGS sem prazo para processos na tarefa 197."""
+    itens = list(vinculos or [])
+    if not itens and advogado_alvo:
+        itens = [advogado_alvo]
+    linhas = ['Advogado impedido de atuar excluído:']
+    vistos = set()
+    for v in itens:
+        if not isinstance(v, dict):
+            continue
+        empresa = (v.get('parte') or '').strip()
+        nome = (v.get('nome') or (advogado_alvo or {}).get('nome') or '').strip()
+        cpf_dig = _somente_digitos(v.get('cpf') or (advogado_alvo or {}).get('cpf') or '')
+        if len(cpf_dig) == 11:
+            cpf_fmt = f'{cpf_dig[:3]}.{cpf_dig[3:6]}.{cpf_dig[6:9]}-{cpf_dig[9:]}'
+        else:
+            cpf_fmt = cpf_dig or str(v.get('cpf') or '').strip()
+        linha = f'{empresa} : {nome} - {cpf_fmt}' if empresa else f'{nome} - {cpf_fmt}'
+        if linha not in vistos:
+            vistos.add(linha)
+            linhas.append(linha)
+    linhas.append('Intimar para regularizar no retorno, se não houver outro habilitado.')
+    return '\n'.join(linhas)
+
+
 def _executar_acao_pos_exclusao_detalhe(driver: Any, processo_info: Dict[str, Any],
                                         advogado_alvo: Dict[str, Any],
                                         tem_outro_regular: bool,
                                         tem_domicilio: bool = False) -> bool:
     """Ramo 3 (advogado ativo em parte ativa, processo não arquivado):
+      - tarefa 197 (Aguardando apreciação pela instância superior) → apenas GIGS sem prazo
       - tem outro advogado regular/ausente → anex_advdelete (assinar='sim')
-      - ficou sem advogado (SEMPRE executa ato_regadv):
+      - ficou sem advogado:
           * empresa com domicílio eletrônico → ato_regadv (destinatario='alvo', Assinar=True)
-          * empresa sem domicílio eletrônico → criar_gigs('1', '', 'xs dec adv') antes + ato_regadv
+          * empresa sem domicílio eletrônico → criar_gigs('1', '', 'xs dec adv') + ato_regadv2 (intimar=False, Assinar=True)
     """
     from Fix.extracao import criar_gigs
     alvo_log = processo_info.get('numero') or processo_info.get('id')
+
+    if processo_info.get('instancia_superior'):
+        obs_197 = _formatar_obs_gigs_197(processo_info.get('vinculos_removidos'), advogado_alvo)
+        ok_gigs = bool(criar_gigs(driver, '', '', obs_197))
+        if ok_gigs:
+            logger.info('[CHIPADV][GIGS][197] Observação criada em %s', alvo_log)
+        else:
+            logger.warning('[CHIPADV][GIGS][197] Falha ao criar GIGS em %s', alvo_log)
+        return ok_gigs
 
     if tem_outro_regular:
         return bool(anex_advdelete(driver, processo_info, advogado_alvo))
@@ -1616,7 +1677,7 @@ def _executar_acao_pos_exclusao_detalhe(driver: Any, processo_info: Dict[str, An
     else:
         logger.warning('[CHIPADV][GIGS] Falha ao criar GIGS "%s" em %s',
                        OBS_GIGS_DEC_ADV, alvo_log)
-    ok_ato = bool(ato_regadv(driver, processo_info, advogado_alvo, intimar=False, destinatario=None))
+    ok_ato = bool(ato_regadv2(driver, processo_info, advogado_alvo))
     return ok_gigs and ok_ato
 
 
@@ -1664,7 +1725,9 @@ def _reprocessar_lote_cpf_paralelo(client: Any, cpf: str,
 def _tratar_advogado_suspenso_no_processo(driver: Any, client: Any,
                                           id_processo: Any, numero: Any,
                                           advogado_alvo: Dict[str, Any],
-                                          etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID) -> bool:
+                                          etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID,
+                                          *,
+                                          estado_sessao: Optional[Dict[str, Any]] = None) -> bool:
     """Ramo 3 em um único processo:
       1. Inativa o advogado na autuação via API (`PUT /partes/situacao`)
       2. Passo 0: reprocessar chip via API
@@ -1715,12 +1778,19 @@ def _tratar_advogado_suspenso_no_processo(driver: Any, client: Any,
                     'sem ação posterior', advogado_alvo.get('nome'), numero)
         return chip_limpo
 
+    # Tarefa 197 (Aguardando apreciação pela instância superior): apenas GIGS sem prazo
+    tarefa_atual = _consultar_tarefa_atual(client, id_processo)
+    em_instancia_superior = _eh_tarefa_instancia_superior(tarefa_atual)
+    if em_instancia_superior:
+        logger.info('[CHIPADV][SUSP] Processo %s na tarefa "%s" — criando apenas GIGS sem prazo',
+                    numero, tarefa_atual)
+
     # Se alguma parte ativa ficou sem advogado regular, prioriza a regra mais
     # gravosa (GIGS + ato_regadv); se todas têm colega regular/ausente, certidão.
     sem_outro_adv = [v for v in ativos_em_parte_ativa if not v.get('tem_outro_regular')]
     todas_tem_outro = not sem_outro_adv
     tem_domicilio = False
-    if not todas_tem_outro:
+    if not em_instancia_superior and not todas_tem_outro:
         tem_domicilio = all(_parte_tem_domicilio_eletronico(client, v) for v in sem_outro_adv)
         logger.info('[CHIPADV][SUSP] Processo %s sem outro advogado — domicilio_eletronico=%s',
                     numero, tem_domicilio)
@@ -1730,16 +1800,38 @@ def _tratar_advogado_suspenso_no_processo(driver: Any, client: Any,
         'numero': numero,
         'vinculos_removidos': ativos_em_parte_ativa,
         'vinculos_sem_outro': sem_outro_adv,
+        'instancia_superior': em_instancia_superior,
     }
-    _executar_no_detalhe(
-        driver,
-        id_processo,
-        lambda drv: _executar_acao_pos_exclusao_detalhe(
-            drv, processo_info, advogado_alvo, todas_tem_outro, tem_domicilio=tem_domicilio
-        ),
-        'SUSP',
-        numero,
-    )
+    ok_acao = False
+    for tent_det in range(2):
+        drv_atual = estado_sessao['driver'] if estado_sessao else driver
+        try:
+            ok_acao = _executar_no_detalhe(
+                drv_atual,
+                id_processo,
+                lambda drv: _executar_acao_pos_exclusao_detalhe(
+                    drv, processo_info, advogado_alvo, todas_tem_outro, tem_domicilio=tem_domicilio
+                ),
+                'SUSP',
+                numero,
+            )
+            break
+        except SessaoExpiradaError as e:
+            if tent_det == 0 and _recuperar_sessao_401(
+                estado_sessao, f'sessão/driver inválido no /detalhe de {numero}: {e}'
+            ):
+                logger.info('[CHIPADV][SUSP] Retentando ação pós-exclusão em %s com novo driver...', numero)
+                continue
+            logger.error('[CHIPADV][SUSP][ACAO_FALHOU] Sessão/driver falhou em %s após recuperação: %s', numero, e)
+            return False
+
+    if not ok_acao:
+        logger.error(
+            '[CHIPADV][SUSP][ACAO_FALHOU] Ação pós-exclusão (despacho/juntada) NÃO concluída em %s '
+            '(tem_outro=%s, domicilio=%s) — requer conferência!',
+            numero, todas_tem_outro, tem_domicilio,
+        )
+        return False
     return chip_limpo
 
 
@@ -1797,7 +1889,8 @@ def _tratar_lote_advogado_suspenso(driver: Any, client: Any,
             cli_cur = estado_sessao['client'] if estado_sessao else client
             try:
                 if _tratar_advogado_suspenso_no_processo(
-                    drv_cur, cli_cur, pid, num, advogado_alvo, etiqueta_id
+                    drv_cur, cli_cur, pid, num, advogado_alvo, etiqueta_id,
+                    estado_sessao=estado_sessao,
                 ):
                     ids_limpos.append(pid)
                 break
@@ -1813,26 +1906,60 @@ def _tratar_lote_advogado_suspenso(driver: Any, client: Any,
     return len(ids_limpos), ids_limpos, True
 
 
+def _driver_em_sessao_invalida(driver: Any) -> Optional[str]:
+    """Detecta acesso-negado, tela de login ou sessão/página quebrada no driver."""
+    try:
+        url = str(getattr(driver, 'current_url', '') or '')
+    except Exception as e:
+        return f'driver inacessível ({type(e).__name__}: {e})'
+    url_low = url.lower()
+    if any(k in url_low for k in ('acesso-negado', '/login', 'erro-acesso', 'sso.cloud.pje')):
+        return f'url={url}'
+    if not ('pje' in url_low and 'jus.br' in url_low):
+        return f'url_fora_pje={url!r}'
+    try:
+        txt = _executar_js(
+            driver,
+            "return (document.body && document.body.innerText ? document.body.innerText.slice(0, 600) : '').toLowerCase();",
+        ) or ''
+        if any(k in txt for k in ('acesso negado', 'sessão expirada', 'sessao expirada', 'não autorizado')):
+            return f'texto_pagina={txt[:120]!r}'
+    except Exception:
+        pass
+    return None
+
+
 def _executar_no_detalhe(driver: Any, id_processo: Any, acao, rotulo: str,
                          numero: Any = '') -> bool:
     """Abre /pjekz/processo/{id}/detalhe em aba nova, roda `acao` e fecha.
 
-    A ida direto pela URL dispensa a tela de consulta e o clique na linha
-    (que dependia do índice da `mat-row` e voltava a carregar a lista). O id
-    vem da própria consulta da API.
+    Se detectar acesso-negado, sessão expirada, página sem elementos ou driver
+    quebrado, levanta `SessaoExpiradaError` para o orquestrador recriar o driver
+    e retentar a ação (nunca engole silenciosamente).
     """
     alvo = numero or id_processo
-    principal = driver.current_window_handle
-    aba = abrir_url_nova_aba(driver, URL_PROCESSO_DETALHE.format(id=id_processo))
+    try:
+        principal = driver.current_window_handle
+        aba = abrir_url_nova_aba(driver, URL_PROCESSO_DETALHE.format(id=id_processo))
+    except Exception as e:
+        raise SessaoExpiradaError(f'driver quebrado ao abrir /detalhe de {alvo}: {type(e).__name__}: {e}') from e
+
     if not aba:
-        logger.warning('[CHIPADV][%s] Não foi possível abrir /detalhe de %s',
-                       rotulo, alvo)
-        return False
+        logger.error('[CHIPADV][%s] Não foi possível abrir /detalhe de %s — disparando recuperação',
+                     rotulo, alvo)
+        raise SessaoExpiradaError(f'falha ao abrir nova aba /detalhe de {alvo}')
 
     try:
         if not espera.ate_url(driver, '/detalhe', teto=30):
-            logger.warning('[CHIPADV][%s] /detalhe não carregou para %s', rotulo, alvo)
-            return False
+            motivo = _driver_em_sessao_invalida(driver) or f"url={getattr(driver, 'current_url', '')!r}"
+            logger.error('[CHIPADV][%s] /detalhe não carregou para %s (%s)', rotulo, alvo, motivo)
+            raise SessaoExpiradaError(f'/detalhe não carregou em {alvo}: {motivo}')
+
+        motivo_sessao = _driver_em_sessao_invalida(driver)
+        if motivo_sessao:
+            logger.error('[CHIPADV][%s] Acesso negado/sessão inválida em %s (%s)', rotulo, alvo, motivo_sessao)
+            raise SessaoExpiradaError(f'sessão inválida em {alvo}: {motivo_sessao}')
+
         # Qualquer um destes confirma que o /detalhe renderizou; as ações
         # usam o menu do processo (chips) ou o botão "Nova Atividade" (GIGS).
         if not espera.ate_aparecer(
@@ -1840,13 +1967,20 @@ def _executar_no_detalhe(driver: Any, id_processo: Any, acao, rotulo: str,
                 'pje-cabecalho-processo, pje-timeline, '
                 'button[aria-label="Menu do processo"]',
                 teto=30):
-            logger.warning('[CHIPADV][%s] /detalhe sem os elementos esperados: %s',
-                           rotulo, alvo)
-            return False
+            motivo = _driver_em_sessao_invalida(driver) or f"url={getattr(driver, 'current_url', '')!r}"
+            logger.error('[CHIPADV][%s] /detalhe sem os elementos esperados em %s (%s) — disparando recuperação',
+                         rotulo, alvo, motivo)
+            raise SessaoExpiradaError(f'/detalhe sem elementos em {alvo}: {motivo}')
+
         return bool(acao(driver))
+    except SessaoExpiradaError:
+        raise
     except Exception as e:
-        logger.warning('[CHIPADV][%s] Processo %s: %s: %s', rotulo, alvo,
-                       type(e).__name__, e)
+        msg_low = f'{type(e).__name__}: {e}'.lower()
+        if any(k in msg_low for k in ('target closed', 'browser has been closed', 'connection refused', 'disconnected', 'page closed')):
+            raise SessaoExpiradaError(f'driver encerrado em {alvo}: {type(e).__name__}: {e}') from e
+        logger.error('[CHIPADV][%s] Erro na ação em %s: %s: %s', rotulo, alvo,
+                     type(e).__name__, e)
         return False
     finally:
         _fechar_aba(driver, aba, principal)

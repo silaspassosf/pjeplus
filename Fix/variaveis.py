@@ -1,5 +1,5 @@
 """Fix.variaveis — Cliente API REST canônico do PJe, paginação e resolvers."""
-from typing import Any, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union
 import requests
 import re
 import html as _html
@@ -185,6 +185,100 @@ class PjeApiClient:
         except Exception:
             return None
 
+    def tipos_atividades_gigs_lote(
+        self,
+        ids_processos: List[Any],
+        tamanho_lote: int = 80,
+        timeout: int = 20,
+    ) -> Optional[Dict[int, List[str]]]:
+        """Consulta em lote quais processos possuem atividades GIGS abertas.
+
+        Usa o mesmo endpoint da 2ª onda do Painel Global:
+        `GET /pje-gigs-api/api/tiposatividades/poridsprocessos?idsProcessos=...`
+        Retorna `{idProcesso: [descricoes...]}` (somente IDs com ao menos 1 atividade)
+        ou `None` em caso de falha HTTP.
+        """
+        ids_limpos = [int(pid) for pid in ids_processos if pid is not None and str(pid).isdigit()]
+        mapa: Dict[int, List[str]] = {}
+        if not ids_limpos:
+            return mapa
+
+        url = self._url("/pje-gigs-api/api/tiposatividades/poridsprocessos")
+        for i in range(0, len(ids_limpos), max(1, tamanho_lote)):
+            lote = ids_limpos[i:i + max(1, tamanho_lote)]
+            params = [("idsProcessos", str(pid)) for pid in lote]
+            try:
+                r = self.sess.get(url, params=params, timeout=timeout)
+                if r.status_code == 401:
+                    raise PermissionError("sessao_expirada_401")
+                if not r.ok:
+                    logger.warning(
+                        "[API] tipos_atividades_gigs_lote HTTP %s (lote %d)",
+                        r.status_code, i // max(1, tamanho_lote) + 1,
+                    )
+                    return None
+                dados = r.json()
+            except PermissionError:
+                raise
+            except Exception as exc:
+                logger.warning("[API] tipos_atividades_gigs_lote erro: %s", exc)
+                return None
+
+            if not isinstance(dados, list):
+                continue
+            for item in dados:
+                if not isinstance(item, dict):
+                    continue
+                pid = item.get("idProcesso")
+                if pid is None:
+                    continue
+                try:
+                    pid_int = int(pid)
+                except (TypeError, ValueError):
+                    continue
+                desc = str(item.get("descricao") or item.get("id") or "")
+                mapa.setdefault(pid_int, []).append(desc)
+        return mapa
+
+    def comentarios_gigs(self, id_processo: str, timeout: int = 15) -> Optional[List[Dict[str, Any]]]:
+        """Obtém comentários GIGS do processo via API."""
+        url = self._url(f"/pje-gigs-api/api/comentario/processo/{id_processo}")
+        try:
+            r = self.sess.get(url, timeout=timeout)
+            if r.status_code == 401:
+                raise PermissionError("sessao_expirada_401")
+            if not r.ok:
+                return None
+            dados = r.json()
+            return dados if isinstance(dados, list) else None
+        except PermissionError:
+            raise
+        except Exception:
+            return None
+
+    def transicoes_tarefa(
+        self,
+        id_processo: Any,
+        id_tarefa: Any,
+        timeout: int = 15,
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Lista as transições de saída da tarefa atual do processo com `transicaoDisponivel`."""
+        url = self._url(
+            f"/pje-comum-api/api/processos/id/{id_processo}/tarefas/{id_tarefa}/transicoes"
+        )
+        try:
+            r = self.sess.get(url, timeout=timeout)
+            if r.status_code == 401:
+                raise PermissionError("sessao_expirada_401")
+            if not r.ok:
+                return None
+            dados = r.json()
+            return dados if isinstance(dados, list) else None
+        except PermissionError:
+            raise
+        except Exception:
+            return None
+
     def obrigacoes_pagar(self, id_processo: str) -> Optional[List[Dict[str, Any]]]:
         """Obrigações de pagar registradas no processo (crédito exequente)."""
         url = self._url(f"/pje-comum-api/api/processos/id/{id_processo}/obrigacoespagar")
@@ -297,6 +391,305 @@ class PjeApiClient:
         """PATCH via gateway."""
         return self.request_gateway('PATCH', path, params=params, json_data=json_data,
                                     headers=headers, timeout=timeout)
+
+    def gateway_put(self, path: str, *, json_data: Optional[Any] = None,
+                    params: Optional[Dict] = None, headers: Optional[Dict[str, str]] = None,
+                    timeout: int = 15) -> Dict[str, Any]:
+        """PUT via gateway."""
+        return self.request_gateway('PUT', path, params=params, json_data=json_data,
+                                    headers=headers, timeout=timeout)
+
+    def transitar_tarefa_processo(
+        self,
+        id_processo: Any,
+        id_tarefa_origem: int,
+        nome_transicao_destino: str,
+        *,
+        verificar_bloqueio: bool = True,
+        timeout: int = 20,
+    ) -> Dict[str, Any]:
+        """Executa transição de tarefa via API REST sem precisar abrir o processo no browser.
+
+        Segue o mesmo contrato validado ao vivo em `atos/judicial_api.py`:
+        1. `PUT /pje-comum-api/api/processos/id/{id}/tarefas/{idTarefa}/` (checa bloqueio);
+        2. `POST /pje-comum-api/api/processos/id/{id}/tarefas/{idTarefa}/transicoes`.
+        """
+        pid = int(id_processo)
+        tid = int(id_tarefa_origem)
+
+        if verificar_bloqueio:
+            res_bloq = self.gateway_put(
+                f"/pje-comum-api/api/processos/id/{pid}/tarefas/{tid}/",
+                json_data={"idProcesso": pid},
+                timeout=timeout,
+            )
+            if res_bloq.get("status") == 401:
+                raise PermissionError("sessao_expirada_401")
+            if not res_bloq.get("ok"):
+                return {
+                    "ok": False,
+                    "status": res_bloq.get("status"),
+                    "motivo": "falha_verificacao_bloqueio",
+                    "error": res_bloq.get("error"),
+                    "data": None,
+                }
+            dados_bloq = res_bloq.get("data")
+            if isinstance(dados_bloq, dict) and dados_bloq.get("bloqueado") and not dados_bloq.get("permiteDesbloqueio"):
+                return {
+                    "ok": False,
+                    "status": res_bloq.get("status"),
+                    "motivo": "bloqueado_outro_usuario",
+                    "mensagem": dados_bloq.get("mensagemBloqueio"),
+                    "data": dados_bloq,
+                }
+
+        res = self.gateway_post(
+            f"/pje-comum-api/api/processos/id/{pid}/tarefas/{tid}/transicoes",
+            json_data={
+                "idProcesso": pid,
+                "idTarefaOrigem": tid,
+                "nomeTransicaoDestino": nome_transicao_destino,
+            },
+            timeout=timeout,
+        )
+        if res.get("status") == 401:
+            raise PermissionError("sessao_expirada_401")
+        dados = res.get("data")
+        if res.get("ok") and isinstance(dados, dict) and dados.get("idTarefa"):
+            return {
+                "ok": True,
+                "status": res.get("status"),
+                "motivo": "transitada",
+                "id_tarefa_destino": dados.get("idTarefa"),
+                "nome_tarefa_destino": dados.get("nomeTarefa"),
+                "data": dados,
+            }
+        return {
+            "ok": False,
+            "status": res.get("status"),
+            "motivo": "falha_transicao",
+            "error": res.get("error"),
+            "data": dados,
+        }
+
+    def movimentar_tarefa_lote_api(
+        self,
+        id_processo: Any,
+        id_tarefa_origem: int,
+        nome_tarefa_destino: str,
+        *,
+        tipo: str = "TRANSICAO_PADRAO",
+        timeout: int = 20,
+    ) -> Dict[str, Any]:
+        """Executa movimentação via endpoint de lote do PJe (`POST /tarefas/{idTarefa}/movimentacoes`).
+
+        Contrato capturado ao vivo em `/painel/movimentacao-lote`:
+        1 única chamada POST com `{tipo, descricao, idProcesso, idTarefaOrigem, nomeTarefaDestino}`.
+        """
+        pid = int(id_processo)
+        tid = int(id_tarefa_origem)
+        payload = {
+            "tipo": tipo,
+            "descricao": nome_tarefa_destino,
+            "idProcesso": pid,
+            "idTarefaOrigem": tid,
+            "nomeTarefaDestino": nome_tarefa_destino,
+        }
+        res = self.gateway_post(
+            f"/pje-comum-api/api/processos/id/{pid}/tarefas/{tid}/movimentacoes",
+            json_data=payload,
+            timeout=timeout,
+        )
+        if res.get("status") == 401:
+            raise PermissionError("sessao_expirada_401")
+        dados = res.get("data")
+        if res.get("ok") and isinstance(dados, dict) and dados.get("idTarefa"):
+            return {
+                "ok": True,
+                "status": res.get("status"),
+                "motivo": "movimentada",
+                "id_tarefa_destino": dados.get("idTarefa"),
+                "nome_tarefa_destino": dados.get("nomeTarefa") or nome_tarefa_destino,
+                "data": dados,
+            }
+        return {
+            "ok": False,
+            "status": res.get("status"),
+            "motivo": "falha_movimentacao",
+            "error": res.get("error"),
+            "data": dados,
+        }
+
+    def listar_agrupamento_processos(
+        self,
+        id_agrupamento: Union[int, str],
+        *,
+        fases: Optional[List[str]] = None,
+        id_tarefa: Optional[int] = None,
+        tamanho_pagina: int = 100,
+        max_paginas: int = 50,
+        timeout: int = 25,
+    ) -> List[Dict[str, Any]]:
+        """Lista processos de um agrupamento do painel global via PATCH API REST.
+
+        Endpoints suportados:
+        - `id_agrupamento='todos'`: `/pje-comum-api/api/agrupamentotarefas/processos/todos`
+        - `id_agrupamento=14|8|6|...`: `/pje-comum-api/api/agrupamentotarefas/{id}/processos`
+        """
+        agrup_str = str(id_agrupamento).strip()
+        if agrup_str.lower() == "todos":
+            endpoint = "/pje-comum-api/api/agrupamentotarefas/processos/todos"
+        else:
+            endpoint = f"/pje-comum-api/api/agrupamentotarefas/{agrup_str}/processos"
+
+        todos: List[Dict[str, Any]] = []
+        for pagina in range(1, max_paginas + 1):
+            body: Dict[str, Any] = {
+                "pagina": pagina,
+                "tamanhoPagina": tamanho_pagina,
+                "subCaixa": None,
+                "tipoAtividade": None,
+                "processos": None,
+                "nomeConclusoMagistrado": None,
+                "usuarioResponsavel": None,
+                "faseProcessualString": list(fases) if fases else None,
+                "idTarefa": [int(id_tarefa)] if id_tarefa is not None else None,
+                "numeroProcesso": None,
+                "juizoDigital": None,
+            }
+            res = self.gateway_patch(endpoint, json_data=body, timeout=timeout)
+            if not res.get("ok"):
+                if res.get("status") == 401:
+                    raise PermissionError("sessao_expirada_401")
+                raise RuntimeError(
+                    f"Falha em {endpoint} p{pagina}: {res.get('error') or res.get('status')}"
+                )
+
+            data = res.get("data") or {}
+            if isinstance(data, dict):
+                lista = data.get("resultado") or data.get("content") or []
+                qtd_paginas = data.get("qtdPaginas") or data.get("totalPaginas")
+            elif isinstance(data, list):
+                lista = data
+                qtd_paginas = None
+            else:
+                lista = []
+                qtd_paginas = None
+
+            todos.extend(p for p in lista if isinstance(p, dict))
+            if not lista:
+                break
+            if isinstance(qtd_paginas, int) and pagina >= qtd_paginas:
+                break
+            if len(lista) < tamanho_pagina:
+                break
+        return todos
+
+    def calcular_data_prazo_gigs(
+        self,
+        dias: int,
+        id_oj: int,
+        *,
+        data_inicio: Optional[str] = None,
+        cache: Optional[Dict[Tuple[int, int, str], str]] = None,
+        timeout: int = 15,
+    ) -> Optional[str]:
+        """Consulta `GET /pje-gigs-api/api/atividade/retorna-prazo/{dias}` e devolve YYYY-MM-DD."""
+        from datetime import date
+
+        inicio = data_inicio or date.today().isoformat()
+        chave = (int(dias), int(id_oj), inicio)
+        if cache is not None and chave in cache:
+            return cache[chave]
+
+        res = self.gateway_get(
+            f"/pje-gigs-api/api/atividade/retorna-prazo/{int(dias)}",
+            params={"idOj": int(id_oj), "dataInicio": inicio},
+            timeout=timeout,
+        )
+        if res.get("status") == 401:
+            raise PermissionError("sessao_expirada_401")
+        if not res.get("ok"):
+            return None
+        data = res.get("data")
+        valor = data.get("DATA") if isinstance(data, dict) else (data if isinstance(data, str) else None)
+        if not valor:
+            return None
+        data_iso = str(valor)[:10]
+        if cache is not None:
+            cache[chave] = data_iso
+        return data_iso
+
+    def criar_atividade_gigs_api(
+        self,
+        id_processo: Any,
+        observacao: str,
+        *,
+        dias: int = -1,
+        id_oj: Optional[int] = None,
+        tipo_atividade_id: int = 24,
+        tipo_dia_prazo: str = "U",
+        destaque: bool = False,
+        reabrir: bool = False,
+        data_prazo_cache: Optional[Dict[Tuple[int, int, str], str]] = None,
+        timeout: int = 15,
+    ) -> Dict[str, Any]:
+        """Cria atividade GIGS via `POST /pje-gigs-api/api/atividade` (validado ao vivo TRT2).
+
+        - `dias=-1` → `dataPrazo = hoje` (status 'A Vencer', equivalente a `-1//xs1` em lote)
+        - `dias=1`  → `dataPrazo = próximo dia útil` (status 'No Prazo', equivalente a `1//xs1`)
+        """
+        from datetime import date
+
+        pid = int(id_processo)
+        oj = int(id_oj) if id_oj is not None else None
+        if oj is None:
+            proc_data = self.processo_por_id(str(pid))
+            if isinstance(proc_data, dict):
+                oj_obj = proc_data.get("orgaoJulgador")
+                oj_raw = (oj_obj.get("id") if isinstance(oj_obj, dict) else None) or proc_data.get("idOrgaoJulgador")
+                if oj_raw is not None:
+                    oj = int(oj_raw)
+        if oj is None:
+            return {"ok": False, "status": None, "motivo": "id_oj_indisponivel", "error": "idOrgaoJulgador não resolvido", "data": None}
+
+        hoje = date.today().isoformat()
+        data_prazo = self.calcular_data_prazo_gigs(
+            dias, oj, data_inicio=hoje, cache=data_prazo_cache, timeout=timeout,
+        )
+        if not data_prazo:
+            return {"ok": False, "status": None, "motivo": "falha_retorna_prazo", "error": f"retorna-prazo/{dias} indisponível", "data": None}
+
+        payload = {
+            "idProcesso": pid,
+            "tipoAtividade": {"id": int(tipo_atividade_id)},
+            "dataPrazo": data_prazo,
+            "dataInicioPrazo": hoje,
+            "tipoDiaPrazo": tipo_dia_prazo,
+            "observacao": str(observacao),
+            "destaque": bool(destaque),
+            "reabrir": bool(reabrir),
+            "idOrgaoJulgador": oj,
+        }
+        res = self.gateway_post("/pje-gigs-api/api/atividade", json_data=payload, timeout=timeout)
+        if res.get("status") == 401:
+            raise PermissionError("sessao_expirada_401")
+        dados = res.get("data")
+        if res.get("ok") and isinstance(dados, dict) and dados.get("id"):
+            return {
+                "ok": True,
+                "status": res.get("status"),
+                "id": dados.get("id"),
+                "dataPrazo": dados.get("dataPrazo") or data_prazo,
+                "data": dados,
+            }
+        return {
+            "ok": False,
+            "status": res.get("status"),
+            "motivo": "falha_criar_atividade",
+            "error": res.get("error"),
+            "data": dados,
+        }
 
     _DOM_CHIP_IDS = (274, 275, 302)
 
@@ -676,24 +1069,94 @@ class _PlaywrightResponseAdapter:
 
 
 class _RequestContextComoSessao:
-    """Adapta o `APIRequestContext` do Playwright à fatia de `requests.Session`"""
+    """Adapta o `APIRequestContext` do Playwright à fatia de `requests.Session`."""
 
-    def __init__(self, contexto, grau: int = 1):
+    def __init__(self, contexto, grau: int = 1, browser_context=None, origin: str = ''):
         self._ctx = contexto
+        self._browser_context = browser_context
+        self._origin = origin
+        self.cookies = {}
         self._headers = {
             'Accept': 'application/json, text/plain, */*',
             'Content-Type': 'application/json',
             'X-Grau-Instancia': str(grau),
         }
 
-    def get(self, url, params=None, timeout=15, headers=None, **kwargs):
+    def _montar_headers(self, headers=None) -> Dict[str, str]:
         hdrs = dict(self._headers)
+        if self._browser_context is not None and 'X-XSRF-TOKEN' not in (headers or {}):
+            try:
+                cookies = (
+                    self._browser_context.cookies(self._origin)
+                    if self._origin else self._browser_context.cookies()
+                )
+                for c in cookies or []:
+                    if str(c.get('name', '')).upper() in ('XSRF-TOKEN', 'XSRF_TOKEN'):
+                        val = c.get('value')
+                        if val:
+                            hdrs['X-XSRF-TOKEN'] = unquote(val)
+                            break
+            except Exception:
+                pass
         if headers:
             hdrs.update(headers)
+        return hdrs
+
+    @staticmethod
+    def _timeout_ms(timeout):
         segundos = timeout[1] if isinstance(timeout, (tuple, list)) else timeout
-        timeout_ms = int(segundos * 1000) if segundos is not None else None
-        res = self._ctx.get(url, params=params, headers=hdrs, timeout=timeout_ms)
+        return int(segundos * 1000) if segundos is not None else None
+
+    @staticmethod
+    def _anexar_params_url(url: str, params) -> Tuple[str, Any]:
+        if isinstance(params, (list, tuple)):
+            from urllib.parse import urlencode
+            sep = '&' if '?' in url else '?'
+            return f"{url}{sep}{urlencode(params)}", None
+        return url, params
+
+    def get(self, url, params=None, timeout=15, headers=None, **kwargs):
+        url_final, params_final = self._anexar_params_url(url, params)
+        res = self._ctx.get(
+            url_final,
+            params=params_final,
+            headers=self._montar_headers(headers),
+            timeout=self._timeout_ms(timeout),
+        )
         return _PlaywrightResponseAdapter(res)
+
+    def request(self, method: str, url: str, params=None, json=None, data=None, headers=None, timeout=15, **kwargs):
+        url_final, params_final = self._anexar_params_url(url, params)
+        req_kwargs: Dict[str, Any] = {
+            'method': method.upper(),
+            'headers': self._montar_headers(headers),
+            'timeout': self._timeout_ms(timeout),
+        }
+        if params_final is not None:
+            req_kwargs['params'] = params_final
+        if json is not None:
+            import json as _json
+            req_kwargs['data'] = (
+                _json.dumps(json, ensure_ascii=False)
+                if isinstance(json, (dict, list))
+                else json
+            )
+        elif data is not None:
+            req_kwargs['data'] = data
+        res = self._ctx.fetch(url_final, **req_kwargs)
+        return _PlaywrightResponseAdapter(res)
+
+    def post(self, url: str, data=None, json=None, params=None, headers=None, timeout=15, **kwargs):
+        return self.request('POST', url, params=params, json=json, data=data, headers=headers, timeout=timeout, **kwargs)
+
+    def put(self, url: str, data=None, json=None, params=None, headers=None, timeout=15, **kwargs):
+        return self.request('PUT', url, params=params, json=json, data=data, headers=headers, timeout=timeout, **kwargs)
+
+    def patch(self, url: str, data=None, json=None, params=None, headers=None, timeout=15, **kwargs):
+        return self.request('PATCH', url, params=params, json=json, data=data, headers=headers, timeout=timeout, **kwargs)
+
+    def delete(self, url: str, params=None, headers=None, timeout=15, **kwargs):
+        return self.request('DELETE', url, params=params, headers=headers, timeout=timeout, **kwargs)
 
 
 def cliente_para(driver, grau: int = 1) -> PjeApiClient:
@@ -703,8 +1166,12 @@ def cliente_para(driver, grau: int = 1) -> PjeApiClient:
             from pjeplay import api as _pjeplay_api
 
             contexto = _pjeplay_api.requisicao(driver)
-            trt_host = urlparse(driver.current_url).netloc
-            sessao_pw = _RequestContextComoSessao(contexto, grau=grau)
+            parsed = urlparse(driver.current_url or "")
+            trt_host = parsed.netloc or "pje.trt2.jus.br"
+            origin = f"{parsed.scheme or 'https'}://{trt_host}"
+            sessao_pw = _RequestContextComoSessao(
+                contexto, grau=grau, browser_context=driver.context, origin=origin,
+            )
             return PjeApiClient(sessao_pw, trt_host, grau=grau)
         except Exception:
             pass

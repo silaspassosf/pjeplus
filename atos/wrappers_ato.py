@@ -277,6 +277,18 @@ ato_sobrestamento = make_ato_wrapper(
     Assinar=False
 )
 
+ato_suspliq = make_ato_wrapper(
+    conclusao_tipo='Homologação',
+    modelo_nome='susf',
+    prazo=0,
+    marcar_pec=False,
+    gigs=None,
+    marcar_primeiro_destinatario=False,
+    perito=True,
+    descricao='Sobrestamento',
+    Assinar=False
+)
+
 ato_prov = make_ato_wrapper(
     conclusao_tipo='Suspensão',
     modelo_nome='suspprov',
@@ -698,23 +710,22 @@ _ato_regadv_base = make_ato_wrapper(
     marcar_primeiro_destinatario=False,
 )
 
+_ato_regadv2_base = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    descricao='Advogado impedido excluído - regularizar',
+    modelo_nome='regadv',
+    intimar=False,
+    Assinar=True,
+    inserir_conteudo=None,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=False,
+)
 
-def ato_regadv(driver, vinculos=None, conteudo_advdelete=None, **kwargs):
-    """Despacho de regularização após exclusão de advogado impedido.
 
-    Preenche o marcador `--` do modelo `regadv` com o mesmo conteúdo formatado
-    de `anex_advdelete` (`Nome da empresa, Advogado - CPF: ...`) e restringe
-    a seleção de intimação aos `destinatarios_alvo` (partes sem advogado regular).
-    """
-    if 'destinatarios_alvo' not in kwargs and vinculos:
-        alvos = []
-        for v in vinculos:
-            if isinstance(v, dict):
-                parte = (v.get('parte') or '').strip()
-                if parte and parte not in alvos:
-                    alvos.append(parte)
-        if alvos:
-            kwargs['destinatarios_alvo'] = alvos
+def _injetar_conteudo_regadv(kwargs, vinculos=None, conteudo_advdelete=None):
+    """Injeta `inserir_conteudo` substituindo `--` pelo texto de `advdelete`."""
     if 'inserir_conteudo' not in kwargs and (vinculos is not None or conteudo_advdelete is not None):
         from .wrappers_anex import formatar_conteudo_advdelete
         from Fix.utils import substituir_marcador_por_conteudo
@@ -734,4 +745,32 @@ def ato_regadv(driver, vinculos=None, conteudo_advdelete=None, **kwargs):
             )
 
         kwargs['inserir_conteudo'] = _inserir_regadv
+
+
+def ato_regadv(driver, vinculos=None, conteudo_advdelete=None, **kwargs):
+    """Despacho de regularização quando a empresa-alvo TEM domicílio eletrônico.
+
+    Preenche o marcador `--` do modelo `regadv` com o mesmo conteúdo formatado
+    de `anex_advdelete` e restringe a intimação aos `destinatarios_alvo`.
+    """
+    if 'destinatarios_alvo' not in kwargs and vinculos:
+        alvos = []
+        for v in vinculos:
+            if isinstance(v, dict):
+                parte = (v.get('parte') or '').strip()
+                if parte and parte not in alvos:
+                    alvos.append(parte)
+        if alvos:
+            kwargs['destinatarios_alvo'] = alvos
+    _injetar_conteudo_regadv(kwargs, vinculos=vinculos, conteudo_advdelete=conteudo_advdelete)
     return _ato_regadv_base(driver, **kwargs)
+
+
+def ato_regadv2(driver, vinculos=None, conteudo_advdelete=None, **kwargs):
+    """Despacho de regularização quando a empresa-alvo NÃO tem domicílio eletrônico.
+
+    Preenche o marcador `--` do modelo `regadv` com o mesmo conteúdo formatado
+    de `anex_advdelete`, com `intimar=False` e `Assinar=True`.
+    """
+    _injetar_conteudo_regadv(kwargs, vinculos=vinculos, conteudo_advdelete=conteudo_advdelete)
+    return _ato_regadv2_base(driver, **kwargs)

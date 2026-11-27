@@ -1287,7 +1287,8 @@ def _parse_gigs_string(string):
             dias_uteis = int(prazo_str.strip())
         except ValueError:
             dias_uteis = None
-        return {'dias_uteis': dias_uteis, 'responsavel': resp.strip(), 'observacao': obs.strip()}
+        resp_val = resp.strip() if _gigs_responsavel_valido(resp) else None
+        return {'dias_uteis': dias_uteis, 'responsavel': resp_val, 'observacao': obs.strip()}
 
     return {'dias_uteis': None, 'responsavel': None, 'observacao': string.strip()}
 
@@ -1380,7 +1381,10 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
                         loc.click(timeout=2000)
                         loc.fill('', timeout=2000)
                         loc.fill(dias_str, timeout=2000)
-                        loc.press('Tab', timeout=2000)
+                        # Usar blur() em vez de Tab: o próximo campo no tab-order é
+                        # input[formcontrolname="responsavel"], que abre o mat-autocomplete
+                        # sobre a tela e atrapalha o preenchimento da observação.
+                        loc.blur(timeout=2000)
                         preenchido_nativo = True
                 except Exception:
                     preenchido_nativo = False
@@ -1415,16 +1419,16 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             if not _preencher_e_confirmar_prazo():
                 return False
 
-        # Etapa 3: responsável (isolado)
-        if responsavel:
-            preencher_campo(driver, 'input[formcontrolname="responsavel"]', responsavel, limpar=True)
+        # Etapa 3: responsável (isolado — somente quando responsável válido foi solicitado)
+        if _gigs_responsavel_valido(responsavel):
+            preencher_campo(driver, 'input[formcontrolname="responsavel"]', responsavel.strip(), limpar=True)
             espera.assentar(driver, 0.5)
             _pressionar_tecla(driver, "ArrowDown")
             espera.assentar(driver, 0.2)
             _pressionar_tecla(driver, "Enter")
             espera.assentar(driver, 0.2)
             if log:
-                logger.debug('[GIGS] Responsavel: %s', responsavel)
+                logger.debug('[GIGS] Responsavel: %s', responsavel.strip())
 
         # Etapa 4: observação (isolada com confirmação)
         if observacao:

@@ -48,15 +48,26 @@ function _pjeTlClassApi(item) {
     // traz nome + valor que são batidos em executarPgto).
     if (titulo.includes('mandado de pagamento')) return 'MandadoPagamento';
     if (low.includes('alvara')) {
+        const tipoDoc = _norm(item.tipo || '');
         // "Expedição"/"expedido" na descrição nunca é alvará a liberar
         if (/(expedicao|expedido)/.test(low)) return null;
         // Anti-falso-positivo pontual: "Manifestação (pedido de alvará)"
         if (titulo.startsWith('manifestacao')) return null;
+        // Certidões/comprovantes de mera entrega, envio, remessa, retirada ou recebimento de alvará
+        // (ex.: "Entrega alvará à CEF") não são o alvará em si.
+        if (/\b(entrega|envio|enviad[oa]|remessa|retirada|recebimento|devolucao|devolvid[oa])\b/.test(low)) return null;
         // Filtro de exclusão: tipo "Planilha" nunca é alvará a liberar.
         // Checa o `low` completo (título + nomeDocumento + descrição), pois
         // o título da API pode vir vazio e "Planilha de Cálculos" chega só
         // na descrição (ex: "Planilha de Cálculos, dedução alvará2").
         if (low.includes('planilha')) return null;
+        // Certidão sem anexos que apenas menciona alvará no título (ex.: "Certidão de entrega...")
+        const temAnexoAlvara = Array.isArray(item.anexos) && item.anexos.some(ax =>
+            _norm((ax.titulo || '') + ' ' + (ax.nomeDocumento || '')).includes('alvara')
+        );
+        if ((tipoDoc === 'certidao' || titulo.startsWith('certidao')) && !temAnexoAlvara) {
+            if (/(cef|caixa|malote|banco|agencia|entrega|envio|cumprimento|mandado)/.test(low)) return null;
+        }
         // Qualquer outra menção a "alvará" no tipo+nome+descrição entra
         // (comportamento da v0.2.0, que detectava corretamente — a v0.3.3
         // exigia alvará na descrição E título exato e perdia alvarás reais).
@@ -283,7 +294,7 @@ window.filtrarDocs = function (docs) {
         if (tipo === 'mandadopagamento') return false; // usado só pela conferência (executarPgto)
         if (/expedi[cç][aã]o/.test(tipo) && /ordem/.test(tipo)) return false;
         if (/expedi[cç][aã]o/.test(texto) && /ordem/.test(texto)) return false;
-        if ((tipo === 'alvarás') && /(expedi[cç][aã]o|expedid[ao]s?|devolvid[ao]s?)/.test(texto))
+        if ((tipo === 'alvarás') && /(expedi[cç][aã]o|expedid[ao]s?|devolvid[ao]s?|entrega|envio|enviad[ao]s?|remessa|retirada)/.test(texto))
             return false;
         return true;
     });
@@ -395,10 +406,8 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
         }
     });
 
-    // DblClick tracker (300ms threshold)
-    let clickTimer = null;
-
     // Event delegation – 1 listener para toda a tabela
+    // Single-click imediato: foca + seleciona o documento na timeline, mantendo a tabela aberta e sem colapsar o DOM.
     tbl.addEventListener('click', async ev => {
         const tr = ev.target.closest('tr[data-idx]');
         if (!tr) return;
@@ -408,63 +417,22 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
         const doc = saida[parseInt(tr.dataset.idx, 10)];
         if (!doc) return;
 
-        // Detectar double-click (300ms)
-        if (clickTimer) {
-            clearTimeout(clickTimer);
-            clickTimer = null;
-
-            // ── DOUBLE CLICK: Abrir documento (clica no textLink Angular) ──
-            if (!doc.isAnexo) {
-                const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id);
-                if (elem) {
-                    const textLink = elem.querySelector('a.tl-documento:not([target="_blank"])');
-                    if (textLink) textLink.click();
-                }
-            } else if (doc.isAnexo && doc.parentId) {
-                // Para anexos, abrir novamente em nova aba
-                const parentItem = encontrarElementoPorUid(doc.parentId);
-                if (parentItem) {
-                    const anexoLinks = parentItem.querySelectorAll('a.tl-documento[id^="anexo_"]');
-                    let alvo = null;
-                    if (doc.id) {
-                        const uidLower = doc.id.toLowerCase();
-                        alvo = Array.from(anexoLinks).find(l =>
-                            (l.getAttribute('href') || '').toLowerCase().includes(uidLower) ||
-                            (l.textContent || '').toLowerCase().includes(uidLower)
-                        );
-                    }
-                    alvo = alvo || anexoLinks[0];
-                    if (alvo) {
-                        const anexoHref = alvo.getAttribute('href');
-                        if (anexoHref) window.open(anexoHref, '_blank');
-                    }
-                }
+        // Destacar linha atual
+        tbody.querySelectorAll('tr').forEach(r => {
+            const d = saida[parseInt(r.dataset.idx, 10)];
+            if (d && window._checkVisited && window._checkVisited.has(d.id)) {
+                r.style.background = '#fff7d6';
+            } else {
+                r.style.background = '';
             }
-            return;
+        });
+        tr.style.background = '#fff7d6';
+
+        try {
+            await onRowClick(doc);
+        } catch (err) {
+            console.error('[CHECK] Erro ao executar ação:', err);
         }
-
-        // ── SINGLE CLICK: Selecionar + destacar (persistente, sem navegação) ──
-        clickTimer = setTimeout(async () => {
-            clickTimer = null;
-
-            // Destacar linha atual
-            tbody.querySelectorAll('tr').forEach(r => {
-                const d = saida[parseInt(r.dataset.idx, 10)];
-                if (d && window._checkVisited && window._checkVisited.has(d.id)) {
-                    r.style.background = '#fff7d6';
-                } else {
-                    r.style.background = '';
-                }
-            });
-            tr.style.background = '#fff7d6';
-
-            // Executar ação (scroll + highlight, SEM navegação)
-            try {
-                await onRowClick(doc);
-            } catch (err) {
-                console.error('[CHECK] Erro ao executar ação:', err);
-            }
-        }, 300);
     });
 
     tbl.addEventListener('mouseenter', ev => {
@@ -810,49 +778,109 @@ function _scrollElementoNaTimeline(elem, smooth = true) {
     return true;
 }
 
+window._scrollElementoNaTimeline = _scrollElementoNaTimeline;
+
+// Clica no link do documento na timeline para SELECIONAR/abrir no visualizador
+// sem deixar o browser deslocar wrappers externos (hash #documento / focus scroll)
+// nem colapsar o cabeçalho do PJe, e garantindo que os painéis do Check fiquem abertos.
+function _clicarSelecionarTimelineSemColapsar(linkAlvo, elemTimeline) {
+    if (!linkAlvo) return false;
+    const tlContainer = _encontrarContainerScrollTimeline(elemTimeline || linkAlvo);
+    const tlScrollAntes = tlContainer ? tlContainer.scrollTop : 0;
+
+    // Captura scrollTop de todos os ancestrais externos (acima do container da timeline)
+    const externos = [];
+    let cur = tlContainer ? tlContainer.parentElement : (elemTimeline && elemTimeline.parentElement);
+    while (cur && cur !== document.documentElement) {
+        externos.push({ el: cur, top: cur.scrollTop, left: cur.scrollLeft });
+        cur = cur.parentElement;
+    }
+    const winX = window.scrollX || 0;
+    const winY = window.scrollY || 0;
+
+    const restaurarExternos = () => {
+        if ((window.scrollX || 0) !== winX || (window.scrollY || 0) !== winY) {
+            window.scrollTo(winX, winY);
+        }
+        for (const item of externos) {
+            if (item.el.scrollTop !== item.top) item.el.scrollTop = item.top;
+            if (item.el.scrollLeft !== item.left) item.el.scrollLeft = item.left;
+        }
+        // Mantém o item da timeline centralizado se algum foco o deslocou
+        if (elemTimeline && tlContainer && Math.abs(tlContainer.scrollTop - tlScrollAntes) > tlContainer.clientHeight) {
+            _scrollElementoNaTimeline(elemTimeline, false);
+        }
+    };
+
+    try {
+        if (typeof linkAlvo.focus === 'function') {
+            linkAlvo.focus({ preventScroll: true });
+        }
+    } catch (e) {}
+
+    try {
+        linkAlvo.click();
+    } catch (e) {
+        safeDispatch(linkAlvo, 'click', { bubbles: true, cancelable: true });
+    }
+
+    // Restaura imediatamente, no próximo frame e após breve assentamento do Angular
+    restaurarExternos();
+    requestAnimationFrame(restaurarExternos);
+    setTimeout(restaurarExternos, 80);
+    setTimeout(restaurarExternos, 250);
+    return true;
+}
+
+function _destacarItemTimeline(elem, docId) {
+    if (!elem) return;
+    // Limpa borda forte de item anteriormente ativo, mantendo marca suave de visitado
+    document.querySelectorAll('li.tl-item-container[data-pje-checked="active"]').forEach(prev => {
+        if (prev !== elem) {
+            prev.dataset.pjeChecked = 'visited';
+            prev.style.border = '1px solid #fcd34d';
+            prev.style.background = '#fffbeb';
+        }
+    });
+    elem.style.transition = 'border-color 0.2s ease, background-color 0.2s ease';
+    elem.style.border = '2px solid #f59e0b';
+    elem.style.background = '#fef3c7';
+    elem.dataset.pjeChecked = 'active';
+    if (docId && window._checkVisited) window._checkVisited.add(docId);
+}
+
 async function onCheckRowClick(doc) {
-    // ── CAMINHO 1: Documento principal — scroll isolado na timeline + highlight persistente ──
+    // ── CAMINHO 1: Documento principal — foca (scroll isolado) E seleciona na timeline ──
     if (!doc.isAnexo) {
         const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id, doc.idDoc);
         if (elem) {
-            // NUNCA clicar no textLink (dispara navegação Angular → remove painel)
-            // NUNCA usar scrollIntoView (quebra cabeçalho do PJe rolando wrappers externos)
-            _scrollElementoNaTimeline(elem, true);
+            _scrollElementoNaTimeline(elem, false);
+            _destacarItemTimeline(elem, doc.id);
 
-            // Destacar persistentemente (não some após timeout)
-            elem.style.transition = 'all 0.3s ease';
-            elem.style.border = '2px solid #fbbf24';
-            elem.style.background = '#fffbeb';
-            elem.dataset.pjeChecked = 'true';
-            window._checkVisited.add(doc.id);
+            const textLink = elem.querySelector('a.tl-documento:not([target="_blank"])');
+            if (textLink) {
+                _clicarSelecionarTimelineSemColapsar(textLink, elem);
+            }
 
-            // Expandir anexos após scroll
-            setTimeout(() => expandirAnexos(elem), 600);
-
-            // Destaque diminui mas permanece visível (não some totalmente)
-            setTimeout(() => {
-                elem.style.transition = 'all 0.8s ease';
-                elem.style.border = '1px solid #fcd34d';
-                elem.style.background = '#fffbeb';
-                setTimeout(() => { elem.style.transition = ''; }, 800);
-            }, 4000);
+            // Expande anexos se houver, sem mexer no layout externo
+            setTimeout(() => expandirAnexos(elem), 350);
         }
         return;
     }
 
-    // ── CAMINHO 2: Anexo (Serasa / CNIB) ──────────────────────────
-    if (doc.isAnexo && (doc.tipo === 'Serasa' || doc.tipo === 'CNIB') && doc.parentId) {
+    // ── CAMINHO 2: Anexo (Serasa / CNIB / Alvará anexo) ──────────────────────────
+    if (doc.isAnexo && doc.parentId) {
         const parentItem = encontrarElementoPorUid(doc.parentId);
         if (!parentItem) {
-            console.warn('[CHECK] Parent certidao nao encontrado para anexo:', doc.id);
+            console.warn('[CHECK] Parent nao encontrado para anexo:', doc.id);
             return;
         }
 
+        _scrollElementoNaTimeline(parentItem, false);
         await expandirAnexos(parentItem);
-        await sleep(500);
+        await sleep(300);
 
-        // Localizar o link do anexo e capturar href direto
-        const anexoLinks = parentItem.querySelectorAll('.tl-item-anexo a.tl-documento, a.tl-documento[id^="anexo_"]');
+        const anexoLinks = parentItem.querySelectorAll('.tl-item-anexo a.tl-documento:not([target="_blank"]), a.tl-documento[id^="anexo_"]:not([target="_blank"]), .tl-item-anexo a.tl-documento, a.tl-documento[id^="anexo_"]');
         let alvo = null;
         if (doc.id) {
             const uidLower = doc.id.toLowerCase();
@@ -867,41 +895,27 @@ async function onCheckRowClick(doc) {
             return;
         }
 
-        // Scroll isolado na timeline até o anexo + highlight persistente
-        _scrollElementoNaTimeline(alvo, true);
-        parentItem.style.transition = 'all 0.3s ease';
-        parentItem.style.boxShadow = '0 0 0 3px #fbbf24';
-        parentItem.dataset.pjeChecked = 'true';
-        window._checkVisited.add(doc.id);
-
-        setTimeout(() => {
-            parentItem.style.boxShadow = '0 0 0 1px #fcd34d';
-            parentItem.style.transition = '';
-        }, 4000);
-
-        // Abrir anexo em nova aba (não afeta o painel)
-        const anexoHref = alvo.getAttribute('href');
-        if (anexoHref) {
-            window.open(anexoHref, '_blank');
-        }
-
+        _scrollElementoNaTimeline(alvo, false);
+        _destacarItemTimeline(parentItem, doc.id);
+        _clicarSelecionarTimelineSemColapsar(alvo, parentItem);
         return;
     }
 
-    // ── CAMINHO 3: Documento sem iconHref (fallback DOM) ──────────
+    // ── CAMINHO 3: Fallback DOM ──────────
     const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id, doc.idDoc);
     if (!elem) {
         console.warn('[CHECK] Elemento nao encontrado para doc:', doc.id);
         return;
     }
 
-    _scrollElementoNaTimeline(elem, true);
-    elem.classList.add('pjetools-destaque');
-    elem.dataset.pjeChecked = 'true';
-    window._checkVisited.add(doc.id);
-
-    setTimeout(() => expandirAnexos(elem), 800);
+    _scrollElementoNaTimeline(elem, false);
+    _destacarItemTimeline(elem, doc.id);
+    const textLink = elem.querySelector('a.tl-documento:not([target="_blank"])');
+    if (textLink) _clicarSelecionarTimelineSemColapsar(textLink, elem);
+    setTimeout(() => expandirAnexos(elem), 350);
 }
+
+window._selecionarDocTimeline = onCheckRowClick;
 
 // ── Destaque colorido de certidões de pesquisa na timeline ──────
 function _injetarEstiloPesquisaTimeline() {
@@ -1230,19 +1244,13 @@ window.executarCheck = async function () {
                 e.stopPropagation();
                 e.preventDefault();
                 try {
-                    // 1) Agrupa alvarás por beneficiário e valor
-                    const docs = await lerTimelineCompleta();
-                    const filtrados = filtrarDocs(docs);
-                    const grupos = window.agruparAlvarasPorBeneficiario(filtrados);
-                    
-                    // 2) Mostra resumo antes de confirmar
-                    if (grupos.length > 0) {
-                        window.mostrarResumoAlvaras(grupos);
+                    if (typeof window.executarPgto === 'function') {
+                        await window.executarPgto();
                     } else {
-                        showToast('Nenhum alvará não registrado encontrado', '#6c757d', 3000);
+                        showToast('Módulo de conferência de alvarás indisponível', '#dc3545', 3000);
                     }
                 } catch (err) {
-                    console.error('Erro ao preparar conferência de alvarás:', err);
+                    console.error('Erro ao executar conferência de alvarás:', err);
                 }
             };
 

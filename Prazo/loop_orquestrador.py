@@ -1,4 +1,4 @@
-"""Prazo - Orquestrador sequencial de 7 etapas com barreiras Playwright.
+"""Prazo - Orquestrador sequencial de 8 etapas com barreiras Playwright.
 
 Sequência antes do P2B:
 1. Navega para Prazos vencidos (painel/global/14)
@@ -8,11 +8,14 @@ Sequência antes do P2B:
 5. Navega para Cumprimento de providências (painel/global/6)
 6. Filtra lista para 100 registros
 7. Seleciona livres + cria atividade xs1 (-1//xs1) página a página
+8. Filtra via API processos livres em Análise (Liquidação/Execução):
+   - se "Aguardando prazo" disponível → movimenta via API para "Aguardando prazo"
+   - se "Aguardando prazo" indisponível → cria GIGS 1//xs1
 """
 import logging
 import math
 import re
-from typing import Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 from Fix import espera
 from Fix.core import (
@@ -555,40 +558,480 @@ def ciclo3(driver) -> bool:
     )
 
 
-def loop_prazo(driver) -> ResultadoExecucao:
-    """Executa o fluxo Prazo completo (etapas 1-7) antes do P2B."""
-    logger.info("[PRAZO] Iniciando fluxo sequencial de 7 etapas (Vencidos -> Cumprimento)")
+def _criar_gigs_1_xs1_no_processo(driver, id_processo: int, numero_processo: str, tag: str) -> bool:
+    """Abre /detalhe em nova aba, cria GIGS 1//xs1 e fecha a aba voltando para a aba base."""
+    from Fix.browser_suporte import abrir_url_nova_aba, forcar_fechamento_abas_extras
+    from Fix.core import garantir_carregamento_pagina
+    from Fix.extracao import criar_gigs
+    from Fix.variaveis import url_processo_detalhe
+
+    aba_base = getattr(driver, "current_window_handle", None)
+    url = url_processo_detalhe(id_processo, "detalhe")
     try:
-        ok_vencidos = ciclo0(driver)
-        if not ok_vencidos:
-            return ResultadoExecucao(
-                sucesso=False,
-                status="FALHA",
-                erro="Falha no painel Prazos vencidos (etapas 1-4)",
-                detalhes={
-                    "prazos_vencidos": False,
-                    "cumprimento_providencias": False,
-                    "ciclo0": False,
-                    "ciclo3": False,
-                },
+        nova_aba = abrir_url_nova_aba(driver, url, timeout=15.0)
+        if not nova_aba:
+            logger.error("%s %s: falha ao abrir nova aba %s", tag, numero_processo, url)
+            return False
+
+        garantir_carregamento_pagina(
+            driver,
+            seletor_esperado="pje-cabecalho-processo,pje-timeline",
+            timeout_refresh=15.0,
+            url_alvo=url,
+        )
+        ok = bool(criar_gigs(driver, "1", "", "xs1"))
+        if ok:
+            logger.info("%s %s: GIGS 1//xs1 criada com sucesso", tag, numero_processo)
+        else:
+            logger.error("%s %s: criar_gigs('1', '', 'xs1') retornou False", tag, numero_processo)
+        return ok
+    except Exception as exc:
+        logger.error("%s %s: erro ao criar GIGS 1//xs1: %s", tag, numero_processo, exc)
+        return False
+    finally:
+        if aba_base:
+            try:
+                forcar_fechamento_abas_extras(driver, aba_base)
+            except Exception as exc_close:
+                logger.warning("%s %s: falha ao fechar aba extra: %s", tag, numero_processo, exc_close)
+
+
+def ciclo_analise_livres(driver, *, tag: str = "[PRAZO][ANALISE_LIVRES]") -> Dict[str, Any]:
+    """Etapa 8 (pós-Cumprimento): filtra livres em Análise (Liq/Exec) via API e despacha ações.
+
+    - Livre + "Aguardando prazo" disponível  → movimenta para "Aguardando prazo" via rota API.
+    - Livre + "Aguardando prazo" indisponível → cria GIGS 1//xs1.
+    """
+    from Fix.variaveis import cliente_para
+    from api.filtro_analise import (
+        NOME_TRANSICAO_AGUARDANDO_PRAZO,
+        filtrar_processos_analise_livres,
+    )
+
+    resumo: Dict[str, Any] = {
+        "ok": True,
+        "total_livres": 0,
+        "movidos_aguardando_prazo": [],
+        "gigs_xs1_criadas": [],
+        "falhas_movimento": [],
+        "falhas_gigs": [],
+        "sem_status_transicao": [],
+        "diagnostico": {},
+    }
+
+    try:
+        client = cliente_para(driver)
+        processos, diag = filtrar_processos_analise_livres(
+            client,
+            confirmar_gigs_individual=True,
+            consultar_escaninho=True,
+            aguardando_prazo_disponivel=None,
+            retornar_diagnostico=True,
+        )
+    except Exception as exc:
+        logger.error("%s Falha na consulta API de Análise livres: %s", tag, exc)
+        resumo["ok"] = False
+        resumo["erro"] = str(exc)
+        return resumo
+
+    resumo["total_livres"] = len(processos)
+    resumo["diagnostico"] = diag
+
+    if not processos:
+        logger.info("%s Nenhum processo livre em Análise (Liq/Exec)", tag)
+        return resumo
+
+    para_aguardando_prazo = [p for p in processos if p.aguardando_prazo_disponivel is True]
+    para_gigs_xs1 = [p for p in processos if p.aguardando_prazo_disponivel is False]
+    sem_status = [p for p in processos if p.aguardando_prazo_disponivel is None]
+
+    logger.info(
+        "%s Livres encontrados=%d | aguardando_prazo(API)=%d | gigs_1_xs1=%d | sem_status=%d",
+        tag,
+        len(processos),
+        len(para_aguardando_prazo),
+        len(para_gigs_xs1),
+        len(sem_status),
+    )
+
+    for proc in sem_status:
+        logger.warning(
+            "%s %s (id=%s): estado de 'Aguardando prazo' indisponível na consulta — pulando",
+            tag,
+            proc.numero_processo,
+            proc.id_processo,
+        )
+        resumo["sem_status_transicao"].append(proc.numero_processo)
+
+    for proc in para_aguardando_prazo:
+        try:
+            res_mov = client.transitar_tarefa_processo(
+                proc.id_processo,
+                proc.id_tarefa,
+                NOME_TRANSICAO_AGUARDANDO_PRAZO,
+                verificar_bloqueio=True,
+            )
+            if res_mov.get("ok"):
+                logger.info(
+                    "%s %s (id=%s) movido via API: %s → %s (%s)",
+                    tag,
+                    proc.numero_processo,
+                    proc.id_processo,
+                    proc.id_tarefa,
+                    res_mov.get("id_tarefa_destino"),
+                    res_mov.get("nome_tarefa_destino") or NOME_TRANSICAO_AGUARDANDO_PRAZO,
+                )
+                resumo["movidos_aguardando_prazo"].append(proc.numero_processo)
+            else:
+                logger.warning(
+                    "%s %s (id=%s) falha ao mover para Aguardando prazo via API: %s",
+                    tag,
+                    proc.numero_processo,
+                    proc.id_processo,
+                    res_mov.get("motivo") or res_mov.get("error"),
+                )
+                resumo["falhas_movimento"].append(
+                    {"numero": proc.numero_processo, "id": proc.id_processo, "motivo": res_mov.get("motivo")}
+                )
+        except Exception as exc:
+            logger.error("%s %s (id=%s) exceção ao mover via API: %s", tag, proc.numero_processo, proc.id_processo, exc)
+            resumo["falhas_movimento"].append(
+                {"numero": proc.numero_processo, "id": proc.id_processo, "motivo": str(exc)}
             )
 
-        _aguardar_tela_livre(driver, teto=15.0)
-        ok_cumprimento = ciclo3(driver)
-        _aguardar_tela_livre(driver, teto=10.0)
+    for proc in para_gigs_xs1:
+        ok_gigs = _criar_gigs_1_xs1_no_processo(driver, proc.id_processo, proc.numero_processo, tag)
+        if ok_gigs:
+            resumo["gigs_xs1_criadas"].append(proc.numero_processo)
+        else:
+            resumo["falhas_gigs"].append({"numero": proc.numero_processo, "id": proc.id_processo})
+
+    logger.info(
+        "%s Concluído | movidos_api=%d | gigs_1_xs1=%d | falhas_mov=%d | falhas_gigs=%d",
+        tag,
+        len(resumo["movidos_aguardando_prazo"]),
+        len(resumo["gigs_xs1_criadas"]),
+        len(resumo["falhas_movimento"]),
+        len(resumo["falhas_gigs"]),
+    )
+    return resumo
+
+
+def _criar_gigs_xs1_em_lote_api(
+    client,
+    processos: Sequence[Any],
+    *,
+    dias: int = -1,
+    observacao: str = "xs1",
+    cache_prazo: Optional[Dict[Any, str]] = None,
+    tag: str = "[PRAZO]",
+) -> Dict[str, Any]:
+    """Cria atividade GIGS (`-1//xs1` por padrão) via API para cada processo informado."""
+    criadas: List[str] = []
+    falhas: List[Dict[str, Any]] = []
+    if cache_prazo is None:
+        cache_prazo = {}
+
+    for proc in processos:
+        try:
+            res = client.criar_atividade_gigs_api(
+                proc.id_processo,
+                observacao,
+                dias=dias,
+                id_oj=getattr(proc, "id_orgao_julgador", None),
+                data_prazo_cache=cache_prazo,
+            )
+            if res.get("ok"):
+                criadas.append(proc.numero_processo)
+                logger.info(
+                    "%s %s (id=%s): GIGS %s//%s criada via API (id=%s, prazo=%s)",
+                    tag,
+                    proc.numero_processo,
+                    proc.id_processo,
+                    dias,
+                    observacao,
+                    res.get("id"),
+                    res.get("dataPrazo"),
+                )
+            else:
+                motivo = res.get("motivo") or res.get("error") or res.get("status")
+                logger.warning(
+                    "%s %s (id=%s): falha ao criar GIGS %s//%s via API: %s",
+                    tag,
+                    proc.numero_processo,
+                    proc.id_processo,
+                    dias,
+                    observacao,
+                    motivo,
+                )
+                falhas.append({"numero": proc.numero_processo, "id": proc.id_processo, "motivo": motivo})
+        except PermissionError:
+            raise
+        except Exception as exc:
+            logger.error("%s %s (id=%s): exceção ao criar GIGS via API: %s", tag, proc.numero_processo, proc.id_processo, exc)
+            falhas.append({"numero": proc.numero_processo, "id": proc.id_processo, "motivo": str(exc)})
+
+    return {"criadas": criadas, "falhas": falhas}
+
+
+def _movimentar_processos_api(
+    client,
+    processos: Sequence[Any],
+    nome_destino: str,
+    *,
+    usar_endpoint_lote: bool = True,
+    tag: str = "[PRAZO]",
+) -> Dict[str, Any]:
+    """Movimenta uma lista de processos via API para `nome_destino`.
+
+    Usa `POST /tarefas/{tid}/movimentacoes` (endpoint nativo da movimentação em lote do PJe)
+    com fallback automático para `transitar_tarefa_processo` caso o cliente não exponha o método.
+    """
+    movidos: List[str] = []
+    bloqueados: List[str] = []
+    falhas: List[Dict[str, Any]] = []
+    tem_mov_lote = usar_endpoint_lote and hasattr(client, "movimentar_tarefa_lote_api")
+
+    for proc in processos:
+        pid = proc.id_processo if hasattr(proc, "id_processo") else int(proc["id"])
+        tid = proc.id_tarefa if hasattr(proc, "id_tarefa") else int(proc.get("idTarefa") or 0)
+        num = proc.numero_processo if hasattr(proc, "numero_processo") else str(proc.get("numeroProcesso") or pid)
+        if not tid:
+            falhas.append({"numero": num, "id": pid, "motivo": "id_tarefa_ausente"})
+            continue
+        try:
+            if tem_mov_lote:
+                res = client.movimentar_tarefa_lote_api(pid, tid, nome_destino)
+            else:
+                res = client.transitar_tarefa_processo(
+                    pid, tid, nome_destino, verificar_bloqueio=True,
+                )
+            if res.get("ok"):
+                movidos.append(num)
+                logger.info(
+                    "%s %s (id=%s) movido via API: %s → %s (%s)",
+                    tag, num, pid, tid, res.get("id_tarefa_destino"),
+                    res.get("nome_tarefa_destino") or nome_destino,
+                )
+            elif res.get("motivo") == "bloqueado_outro_usuario":
+                bloqueados.append(num)
+                logger.warning("%s %s (id=%s) bloqueado por outro usuário — pulado", tag, num, pid)
+            else:
+                motivo = res.get("motivo") or res.get("error") or res.get("status")
+                logger.warning("%s %s (id=%s) falha ao mover para '%s': %s", tag, num, pid, nome_destino, motivo)
+                falhas.append({"numero": num, "id": pid, "motivo": motivo})
+        except PermissionError:
+            raise
+        except Exception as exc:
+            logger.error("%s %s (id=%s) exceção ao mover para '%s': %s", tag, num, pid, nome_destino, exc)
+            falhas.append({"numero": num, "id": pid, "motivo": str(exc)})
+
+    return {"movidos": movidos, "bloqueados": bloqueados, "falhas": falhas}
+
+
+def ciclo1_vencidos_para_analise_api(client, *, tag: str = "[PRAZO][1_VENCIDOS_API]") -> Dict[str, Any]:
+    """Etapa 1 (API): Prazos Vencidos (Liq/Exec) → movimenta todos para Análise."""
+    from api.filtro_analise import (
+        FASES_LIQUIDACAO_EXECUCAO,
+        ID_AGRUPAMENTO_PRAZOS_VENCIDOS,
+        NOME_TRANSICAO_ANALISE,
+    )
+
+    processos = client.listar_agrupamento_processos(
+        ID_AGRUPAMENTO_PRAZOS_VENCIDOS,
+        fases=list(FASES_LIQUIDACAO_EXECUCAO),
+    )
+    logger.info("%s Encontrados %d processo(s) em Prazos Vencidos (Liq/Exec)", tag, len(processos))
+    if not processos:
+        return {"ok": True, "total": 0, "movidos": [], "bloqueados": [], "falhas": []}
+
+    res_mov = _movimentar_processos_api(client, processos, NOME_TRANSICAO_ANALISE, tag=tag)
+    logger.info(
+        "%s Concluído | total=%d movidos=%d bloqueados=%d falhas=%d",
+        tag, len(processos), len(res_mov["movidos"]), len(res_mov["bloqueados"]), len(res_mov["falhas"]),
+    )
+    return {"ok": True, "total": len(processos), **res_mov}
+
+
+def ciclo2_3_analise_api(
+    client,
+    *,
+    ids_escaninho_cache: Optional[set] = None,
+    cache_prazo: Optional[Dict[Any, str]] = None,
+    tag_mov: str = "[PRAZO][2_ANALISE_MOV_API]",
+    tag_liv: str = "[PRAZO][3_ANALISE_LIVRES_API]",
+) -> Dict[str, Any]:
+    """Etapas 2 e 3 (API) em Análise (Liq/Exec, tarefa 500):
+    - Etapa 2: não-livres (com GIGS/comentário/responsável) → Cumprimento de providências.
+    - Etapa 3: livres com 'Aguardando prazo' disponível → Aguardando prazo;
+               livres com 'Aguardando prazo' indisponível → GIGS `-1//xs1` via API.
+    """
+    from api.filtro_analise import (
+        FASES_LIQUIDACAO_EXECUCAO,
+        ID_AGRUPAMENTO_ANALISE,
+        ID_TAREFA_ANALISE,
+        NOME_TAREFA_ANALISE,
+        NOME_TRANSICAO_AGUARDANDO_PRAZO,
+        NOME_TRANSICAO_CUMPRIMENTO,
+        classificar_processos_agrupamento,
+    )
+
+    classif = classificar_processos_agrupamento(
+        client,
+        ID_AGRUPAMENTO_ANALISE,
+        fases=FASES_LIQUIDACAO_EXECUCAO,
+        id_tarefa=ID_TAREFA_ANALISE,
+        nome_tarefa=NOME_TAREFA_ANALISE,
+        confirmar_gigs_individual=True,
+        consultar_escaninho=True,
+        ids_escaninho_cache=ids_escaninho_cache,
+        verificar_aguardando_prazo_nos_livres=True,
+        excetuar_apenas_xs1=True,
+    )
+    nao_livres = classif["nao_livres"]
+    apenas_xs1 = classif.get("apenas_xs1") or []
+    livres = classif["livres"]
+    ids_escaninho = classif["ids_escaninho"]
+
+    logger.info(
+        "%s Não-livres para Cumprimento de providências: %d (apenas_xs1 excetuados=%d | doc_nao_apreciado preservados=%d)",
+        tag_mov, len(nao_livres), len(apenas_xs1), len(classif["com_doc_nao_apreciado"]),
+    )
+    res_nao_livres = (
+        _movimentar_processos_api(client, nao_livres, NOME_TRANSICAO_CUMPRIMENTO, tag=tag_mov)
+        if nao_livres
+        else {"movidos": [], "bloqueados": [], "falhas": []}
+    )
+
+    para_ag_prazo = [p for p in livres if p.aguardando_prazo_disponivel is True]
+    para_xs1 = [p for p in livres if p.aguardando_prazo_disponivel is False]
+    sem_status = [p for p in livres if p.aguardando_prazo_disponivel is None]
+
+    logger.info(
+        "%s Livres=%d | aguardando_prazo=%d | xs1_api=%d | sem_status=%d",
+        tag_liv, len(livres), len(para_ag_prazo), len(para_xs1), len(sem_status),
+    )
+    res_ag_prazo = (
+        _movimentar_processos_api(client, para_ag_prazo, NOME_TRANSICAO_AGUARDANDO_PRAZO, tag=tag_liv)
+        if para_ag_prazo
+        else {"movidos": [], "bloqueados": [], "falhas": []}
+    )
+    res_xs1 = (
+        _criar_gigs_xs1_em_lote_api(client, para_xs1, dias=-1, observacao="xs1", cache_prazo=cache_prazo, tag=tag_liv)
+        if para_xs1
+        else {"criadas": [], "falhas": []}
+    )
+
+    return {
+        "ok": True,
+        "ids_escaninho": ids_escaninho,
+        "diagnostico": classif["diagnostico"],
+        "nao_livres": {"total": len(nao_livres), **res_nao_livres},
+        "livres": {
+            "total": len(livres),
+            "movidos_aguardando_prazo": res_ag_prazo["movidos"],
+            "falhas_movimento": res_ag_prazo["falhas"],
+            "gigs_xs1_criadas": res_xs1["criadas"],
+            "falhas_gigs": res_xs1["falhas"],
+            "sem_status": [p.numero_processo for p in sem_status],
+        },
+    }
+
+
+def ciclo4_cumprimento_livres_api(
+    client,
+    *,
+    ids_escaninho_cache: Optional[set] = None,
+    cache_prazo: Optional[Dict[Any, str]] = None,
+    tag: str = "[PRAZO][4_CUMPRIMENTO_API]",
+) -> Dict[str, Any]:
+    """Etapa 4 (API): Cumprimento de Providências (agrupamento 6, todas as fases) livres → GIGS `-1//xs1`."""
+    from api.filtro_analise import (
+        ID_AGRUPAMENTO_CUMPRIMENTO,
+        classificar_processos_agrupamento,
+    )
+
+    classif = classificar_processos_agrupamento(
+        client,
+        ID_AGRUPAMENTO_CUMPRIMENTO,
+        fases=None,
+        id_tarefa=None,
+        confirmar_gigs_individual=True,
+        consultar_escaninho=True,
+        ids_escaninho_cache=ids_escaninho_cache,
+        verificar_aguardando_prazo_nos_livres=False,
+    )
+    livres = classif["livres"]
+    logger.info(
+        "%s Total=%d | livres=%d | nao_livres=%d | doc_nao_apreciado=%d",
+        tag,
+        classif["diagnostico"]["total"],
+        len(livres),
+        len(classif["nao_livres"]),
+        len(classif["com_doc_nao_apreciado"]),
+    )
+    res_xs1 = (
+        _criar_gigs_xs1_em_lote_api(client, livres, dias=-1, observacao="xs1", cache_prazo=cache_prazo, tag=tag)
+        if livres
+        else {"criadas": [], "falhas": []}
+    )
+    return {
+        "ok": True,
+        "diagnostico": classif["diagnostico"],
+        "total_livres": len(livres),
+        "gigs_xs1_criadas": res_xs1["criadas"],
+        "falhas_gigs": res_xs1["falhas"],
+    }
+
+
+def loop_prazo(driver) -> ResultadoExecucao:
+    """Executa o fluxo Prazo completo em 4 etapas 100% via API REST antes do P2B:
+    1. Prazos Vencidos (Liq/Exec) → Análise
+    2. Análise (Liq/Exec) não-livres → Cumprimento de providências
+    3. Análise (Liq/Exec) livres → Aguardando prazo (se disponível) ou GIGS `-1//xs1`
+    4. Cumprimento de providências livres → GIGS `-1//xs1`
+    """
+    from Fix.variaveis import cliente_para
+
+    logger.info(
+        "[PRAZO] Iniciando fluxo 100%% API (1:Vencidos→Análise | 2:Análise não-livres→Cumprimento | "
+        "3:Análise livres→Ag.Prazo/xs1 | 4:Cumprimento livres→xs1)"
+    )
+    try:
+        client = cliente_para(driver)
+        cache_prazo: Dict[Any, str] = {}
+
+        res1 = ciclo1_vencidos_para_analise_api(client)
+        res23 = ciclo2_3_analise_api(client, cache_prazo=cache_prazo)
+        res4 = ciclo4_cumprimento_livres_api(
+            client,
+            ids_escaninho_cache=res23.get("ids_escaninho"),
+            cache_prazo=cache_prazo,
+        )
+
+        logger.info(
+            "[PRAZO] Concluído (API) | vencidos→analise=%d | analise→cumprimento=%d | "
+            "analise→ag_prazo=%d | analise_xs1=%d | cumprimento_xs1=%d",
+            len(res1["movidos"]),
+            len(res23["nao_livres"]["movidos"]),
+            len(res23["livres"]["movidos_aguardando_prazo"]),
+            len(res23["livres"]["gigs_xs1_criadas"]),
+            len(res4["gigs_xs1_criadas"]),
+        )
         return ResultadoExecucao(
-            sucesso=ok_cumprimento,
-            status="OK" if ok_cumprimento else "FALHA",
-            erro=None if ok_cumprimento else "Falha no painel Cumprimento de providências (etapas 5-7)",
+            sucesso=True,
+            status="OK",
             detalhes={
-                "prazos_vencidos": True,
-                "cumprimento_providencias": ok_cumprimento,
+                "prazos_vencidos": res1,
+                "analise_nao_livres": res23["nao_livres"],
+                "analise_livres": res23["livres"],
+                "cumprimento_providencias": res4,
                 "ciclo0": True,
-                "ciclo3": ok_cumprimento,
+                "ciclo3": True,
             },
         )
     except Exception as exc:
-        logger.error("[PRAZO] Erro crítico no fluxo Prazo: %s", exc)
+        logger.error("[PRAZO] Erro crítico no fluxo Prazo (API): %s", exc)
         return ResultadoExecucao(
             sucesso=False,
             status="ERRO",

@@ -245,7 +245,15 @@ def _gigs_com_prazo_pendente_api(driver: Any) -> bool:
 
 
 def _mov_arquivar_se_sem_prazo(driver: Any) -> bool:
-    """Regra de arquivamento do P2B: só arquiva quando a única GIGS é `xs1`."""
+    """Regra de arquivamento do P2B: só arquiva quando não está arquivado e a única GIGS é `xs1`."""
+    try:
+        from .p2b_gateway import processo_esta_arquivado_p2b
+        eh_arq, motivo_arq = processo_esta_arquivado_p2b(driver)
+        if eh_arq:
+            logger.info('[FLUXO_PZ] Arquivamento PULADO: processo já está arquivado (%s)', motivo_arq)
+            return True
+    except Exception:
+        pass
     if _gigs_com_prazo_pendente(driver):
         logger.info('[FLUXO_PZ] Arquivamento PULADO: processo tem GIGS com prazo pendente')
         return True
@@ -329,6 +337,7 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
     ato_prev = m['ato_prev']
     ato_meios = m['ato_meios']
     ato_sobrestamento = m['ato_sobrestamento']
+    ato_suspliq = m.get('ato_suspliq')
     ato_pesqliq = m.get('ato_pesqliq')
     ato_reitmeios = m.get('ato_reitmeios')
     ato_reit1 = m.get('ato_reit1')
@@ -338,9 +347,13 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
     anex_retifidpj = m.get('anex_retifidpj')
     pec_excluiargos = m.get('pec_excluiargos')
     try:
-        from .p2b_gateway import inicar_exec as _inicar_exec
+        from .p2b_gateway import (
+            inicar_exec as _inicar_exec,
+            registrar_credito_mock_p2b as _registrar_credito_mock_p2b,
+        )
     except Exception:
         _inicar_exec = None
+        _registrar_credito_mock_p2b = None
 
     return [
         (['A pronúncia da'], (prescreve,)),
@@ -388,6 +401,11 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
 
         (['Abre-se, como reiteração'], ("criar_gigs[1//xs sob 24]", "criar_gigs[1//xs pec exequente pessoal]", ato_sobrestamento)),
 
+        (
+            ['Reitere-se a intimação para que o(a) reclamante apresente cálculos'],
+            ("criar_gigs[1//xs pec exeq -exec+sobrestar]", _registrar_credito_mock_p2b, ato_suspliq),
+        ),
+
         ([
             '05 dias para a apresentação',
             'suspensão da execução, com fluência',
@@ -402,7 +420,6 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
             'início da fluência',
             'oito dias para apresentação',
             'oito dias para apresentacao',
-            'Reitere-se a intimação para que o(a) reclamante apresente cálculos',
             'remessa ao sobrestamento, com fluência',
             'sob pena de sobrestamento e fluência do prazo prescricional',
             'cinco dias para a parte exequente apresentar',

@@ -542,12 +542,11 @@ def _linha_destinatario(driver, idx):
 
 def _dropdown_meio_linha(driver, idx):
     """Localiza o mat-select de "Meios de Expedição" da linha `idx`."""
+    xp_linha = _XP_LINHA_DESTINATARIO.format(idx=idx)
     seletores = (
-        _XP_LINHA_DESTINATARIO.format(idx=idx) + '//mat-select[contains(@id,"MeioExpedicao") or @placeholder="Meios de Expedição"]',
-        _XP_LINHA_DESTINATARIO.format(idx=idx) + '//pje-pec-coluna-meio-expedicao//mat-select',
-        _XP_LINHA_DESTINATARIO.format(idx=idx) + '//div[contains(@class,"mat-form-field-infix")]',
-        f'pje-pec-coluna-meio-expedicao mat-select[id*="MeioExpedicao"]',
-        'mat-select[id*="MeioExpedicao"]',
+        xp_linha + '//mat-select[contains(@id,"MeioExpedicao") or @placeholder="Meios de Expedição"]',
+        xp_linha + '//pje-pec-coluna-meio-expedicao//mat-select',
+        xp_linha + '//pje-pec-coluna-meio-expedicao//div[contains(@class,"mat-form-field-infix")]',
     )
     for sel in seletores:
         el = espera.elemento(driver, sel, teto=2)
@@ -626,7 +625,7 @@ def _tipo_prazo_atual(driver, idx):
         res = _executar_js(
             driver,
             """(function(){
-                var tr = __pjeEls(%r)[0];
+                var tr = document.evaluate(%r, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
                 if (!tr) return '';
                 var m = tr.querySelector('pje-pec-coluna-tipo-prazo mat-radio-button.mat-radio-checked')
                      || tr.querySelector('mat-radio-button[id*="TipoPrazo"][class*="mat-radio-checked"]');
@@ -651,7 +650,7 @@ def _valor_prazo_atual(driver, idx):
         res = _executar_js(
             driver,
             """(function(){
-                var tr = __pjeEls(%r)[0];
+                var tr = document.evaluate(%r, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
                 if (!tr) return '';
                 var inp = tr.querySelector('input[id$="PrazoDiasUteis"]');
                 return inp ? String(inp.value == null ? '' : inp.value) : '';
@@ -676,8 +675,8 @@ def _restabelecer_prazo_da_linha(driver, idx, prazo_dias=5, debug=False, log=Non
 
     # entre uma chamada e outra o Angular pode re-renderizar a linha.
     _JS_MARCAR_E_PREENCHER = """(function(){
-        var alvo = String(arguments[0]);
-        var tr = __pjeEls(%r)[0];
+        var alvo = %r;
+        var tr = document.evaluate(%r, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
         if (!tr) return 'sem_linha';
         var radio = tr.querySelector("pje-pec-coluna-tipo-prazo mat-radio-button[id$='TipoPrazoD'] input[type='radio']")
                  || tr.querySelector("mat-radio-button[id$='TipoPrazoD'] input[type='radio']");
@@ -692,7 +691,7 @@ def _restabelecer_prazo_da_linha(driver, idx, prazo_dias=5, debug=False, log=Non
         inp.dispatchEvent(new Event('change', {bubbles: true}));
         inp.dispatchEvent(new Event('blur', {bubbles: true}));
         return 'ok';
-    })()""" % _XP_LINHA_DESTINATARIO.format(idx=idx)
+    })()""" % (str(prazo_alvo), _XP_LINHA_DESTINATARIO.format(idx=idx))
 
     def _aplicar():
         try:

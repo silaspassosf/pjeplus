@@ -26,7 +26,7 @@
     if (window.PjeGigsAtividades) return;
 
     var API = '/pje-gigs-api/api';
-    var VERSAO = '1.2.0';
+    var VERSAO = '1.2.1';
     var PJE_PADRAO = 'https://pje.trt2.jus.br';
     var PARAM = 'pjetools';
     var VALOR_PARAM = 'gigs-teimosinha';
@@ -58,36 +58,59 @@
         return typeof fn === 'function' ? fn.call(w || window, msg) : false;
     }
 
-    // XSRF só é legível na própria origem do PJe (no SISBAJUD o cookie não existe)
+    // Cookie do PJe TRT2 é `Xsrf-Token` (case misto) — busca case-insensitive.
+    function lerXsrf() {
+        var partes = String(document.cookie || '').split(';');
+        for (var i = 0; i < partes.length; i++) {
+            var item = partes[i].trim();
+            if (item.toLowerCase().indexOf('xsrf-token=') === 0) {
+                return decodeURIComponent(item.slice(item.indexOf('=') + 1));
+            }
+        }
+        return '';
+    }
+
     function headersJson() {
-        var h = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
-        var m = String(document.cookie || '').match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
-        if (m) h['X-XSRF-TOKEN'] = decodeURIComponent(m[1]);
+        var h = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Grau-Instancia': '1'
+        };
+        var xsrf = lerXsrf();
+        if (xsrf) h['X-XSRF-TOKEN'] = xsrf;
         return h;
     }
 
-    // GM_xmlhttpRequest quando disponível (sem CORS, funciona do SISBAJUD);
-    // fetch como reserva (mesma origem).
+    function mesmaOrigem(url) {
+        try {
+            return new URL(url, window.location.href).origin === window.location.origin;
+        } catch (e) { return false; }
+    }
+
+    // Same-origin (aba /detalhe do PJe): usa fetch nativo com credentials: 'include'
+    // para enviar cookies de sessão + X-XSRF-TOKEN + Origin/Referer corretos (evita 403).
+    // Cross-origin (ex.: SISBAJUD): cai para GM_xmlhttpRequest.
     function req(method, url) {
-        if (typeof GM_xmlhttpRequest === 'function') {
-            return new Promise(function (resolve, reject) {
-                try {
-                    GM_xmlhttpRequest({
-                        method: method,
-                        url: url,
-                        headers: headersJson(),
-                        timeout: 20000,
-                        onload: function (r) { resolve({ status: r.status, texto: r.responseText || '' }); },
-                        onerror: function () { reject(new Error('rede (GM_xhr)')); },
-                        ontimeout: function () { reject(new Error('timeout (GM_xhr)')); }
-                    });
-                } catch (e) { reject(e); }
-            });
+        var headers = headersJson();
+        if (mesmaOrigem(url) || typeof GM_xmlhttpRequest !== 'function') {
+            return fetch(url, { method: method, credentials: 'include', headers: headers })
+                .then(function (r) {
+                    return r.text().then(function (t) { return { status: r.status, texto: t }; });
+                });
         }
-        return fetch(url, { method: method, credentials: 'include', headers: headersJson() })
-            .then(function (r) {
-                return r.text().then(function (t) { return { status: r.status, texto: t }; });
-            });
+        return new Promise(function (resolve, reject) {
+            try {
+                GM_xmlhttpRequest({
+                    method: method,
+                    url: url,
+                    headers: headers,
+                    timeout: 20000,
+                    onload: function (r) { resolve({ status: r.status, texto: r.responseText || '' }); },
+                    onerror: function () { reject(new Error('rede (GM_xhr)')); },
+                    ontimeout: function () { reject(new Error('timeout (GM_xhr)')); }
+                });
+            } catch (e) { reject(e); }
+        });
     }
 
     // ── regra ───────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 // ═══════════════════════════════════════════════════════════════════
 // SISBAJUD — desbloquear.js (botão "Desbloquear")
-// Onde: https://sisbajud.pdpj.jus.br/ordem-judicial/*/desdobrar (e /detalhar)
+// Onde: https://sisbajud.pdpj.jus.br/ordem-judicial/*/desdobrar
 // O que faz, ao clicar:
 //   1. Altera os mat-select visíveis em "Transferir valor" para "Desbloquear valor"
 //   2. Clica em "Salvar" (button.mat-fab.mat-primary)
@@ -56,7 +56,7 @@
     function naRotaAlvo() {
         var h = window.location.hostname || '';
         if (!/^sisbajud\.(pdpj|cnj)\.jus\.br$/.test(h)) return false;
-        return /^\/ordem-judicial\/[^/]+\/(desdobrar|detalhar)\/?$/.test(window.location.pathname || '');
+        return /^\/ordem-judicial\/[^/]+\/desdobrar\/?$/.test(window.location.pathname || '');
     }
 
     function ehRequisicaoInformacoes() {
@@ -365,7 +365,7 @@
         btn.type = 'button';
         btn.textContent = TEXTO_PADRAO;
         btn.title = 'Muda todos os dropdowns Transferir para Desbloquear, salva e protocola';
-        btn.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:999999;' +
+        btn.style.cssText = 'position:fixed;bottom:20px;left:24px;z-index:999999;' +
             'padding:12px 22px;border:none;border-radius:8px;background:#c62828;color:#fff;' +
             'font:bold 15px Arial,sans-serif;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);';
         btn.addEventListener('click', function () { aoClicar(btn); });

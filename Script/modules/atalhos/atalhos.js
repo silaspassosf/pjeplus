@@ -1488,7 +1488,8 @@ window.injetarBotaoLivresPainelGlobal = injetarBotaoLivresPainelGlobal;
     }
 
     // numero: '1000478-63.2025.5.02.0703' (aceita com/sem pontuação, ou o texto da página)
-    // opcoes: { grau: 1|2, focar: true, rota: 'detalhe'|'anexar', limparGigsTeimosinha: false }
+    // opcoes: { grau: 1|2, focar: true, rota: 'detalhe'|'anexar', rotas: ['detalhe','anexar'],
+    //           limparGigsTeimosinha: false }
     async function abrir_processo_direto(numero, opcoes) {
         const opts = Object.assign({ focar: true, rota: 'detalhe' }, opcoes || {});
         try {
@@ -1510,32 +1511,31 @@ window.injetarBotaoLivresPainelGlobal = injetarBotaoLivresPainelGlobal;
                 };
             }
 
-            // ── GIGS: apaga as vencidas com "teimosinha" ANTES de abrir a aba ──
-            let limpezaGigs = null;
-            if (opts.limparGigsTeimosinha) {
-                const gigs = window.PjeGigsAtividades;
-                if (gigs && typeof gigs.limparTeimosinhaVencidas === 'function') {
-                    try {
-                        limpezaGigs = await gigs.limparTeimosinhaVencidas(achado.id, { base: PJE });
-                        console.log('[abrir_processo_direto] GIGS teimosinha vencidas →', limpezaGigs);
-                    } catch (e) {
-                        console.warn('[abrir_processo_direto] limpeza GIGS falhou:', e);
-                    }
-                } else {
-                    console.warn('[abrir_processo_direto] PjeGigsAtividades indisponível — limpeza GIGS não feita');
-                }
+            // ── rotas: 1 aba (rota) ou várias (rotas), ex.: ['detalhe', 'anexar'] ──
+            const rotas = (Array.isArray(opts.rotas) && opts.rotas.length)
+                ? opts.rotas.slice()
+                : [opts.rota || 'detalhe'];
+
+            // O marcador da limpeza de GIGS vai na aba /detalhe (mesma origem, com
+            // cookie/XSRF do PJe); se não houver /detalhe, vai na primeira.
+            const iMarcador = Math.max(0, rotas.indexOf('detalhe'));
+
+            const urls = [];
+            let aba = null;
+            for (let i = 0; i < rotas.length; i++) {
+                const marcador = opts.limparGigsTeimosinha && i === iMarcador;
+                const u = urlProcesso(achado.id, rotas[i]) + (marcador ? '?pjetools=gigs-teimosinha' : '');
+                urls.push(u);
+                // foca só a primeira aba; as demais abrem em segundo plano
+                aba = await abrirAba(u, i === 0 ? opts.focar : false);
+                console.log('%c[abrir_processo_direto] ' + achado.registro.classe + ' ' + alvo +
+                    ' → ' + u, 'font-weight:bold;color:#1976d2');
             }
 
-            // marcador: a aba do PJe refaz a limpeza com o cookie/XSRF da própria origem
-            const url = urlProcesso(achado.id, opts.rota) +
-                (opts.limparGigsTeimosinha ? '?pjetools=gigs-teimosinha' : '');
-            const aba = await abrirAba(url, opts.focar);
-            console.log('%c[abrir_processo_direto] ' + achado.registro.classe + ' ' + alvo +
-                ' → ' + url, 'font-weight:bold;color:#1976d2');
             return {
-                ok: true, numero: alvo, id: achado.id, grau: achado.grau, rota: opts.rota,
-                classe: achado.registro.classe || '', url: url, aba: !!aba,
-                focou: opts.focar !== false, gigs: limpezaGigs
+                ok: true, numero: alvo, id: achado.id, grau: achado.grau,
+                rota: rotas[0], rotas: rotas, urls: urls, url: urls[0], aba: !!aba,
+                focou: opts.focar !== false, gigs: { via: 'aba PJe', marcador: !!opts.limparGigsTeimosinha }
             };
         } catch (e) {
             return { ok: false, motivo: 'erro: ' + e };

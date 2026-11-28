@@ -4,12 +4,10 @@
 // SISBAJUD — desbloquear.js (botão "Desbloquear")
 // Onde: https://sisbajud.pdpj.jus.br/ordem-judicial/*/desdobrar (e /detalhar)
 // O que faz, ao clicar:
-//   1. Expande painéis recolhidos (mat-expansion-panel-header)
-//   2. Altera todos os mat-select em "Transferir valor" para "Desbloquear valor"
-//   3. Clica em "Salvar" (button.mat-fab.mat-primary)
-//   4. Clica em "Protocolar" (se o modal ainda não tiver aberto)
-//   5. Preenche a senha (keyring via otp_bridge local -> GM_getValue -> prompt)
-//   6. Clica em "Confirmar" no modal de protocolo
+//   1. Altera os mat-select visíveis em "Transferir valor" para "Desbloquear valor"
+//   2. Clica em "Salvar" (button.mat-fab.mat-primary)
+//   3. Aguarda aparecer e clica em "Protocolar"
+//   4. Na dialog de protocolo, preenche a senha e clica em "Confirmar"
 // Injetado pelo orquestrador (sisbajud.js → injetarUI), sem timer próprio.
 // ═══════════════════════════════════════════════════════════════════
 
@@ -146,25 +144,7 @@
         input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'Enter' }));
     }
 
-    // ── 1. Expandir painéis recolhidos ───────────────────────────────
-    async function expandirPaineisRecolhidos() {
-        var headers = Array.from(document.querySelectorAll('mat-expansion-panel-header[role="button"]'));
-        var abertos = 0;
-        for (var i = 0; i < headers.length; i++) {
-            var h = headers[i];
-            if (!visivel(h)) continue;
-            if (h.getAttribute('aria-expanded') === 'false') {
-                h.scrollIntoView({ block: 'center' });
-                h.click();
-                abertos++;
-                await esperar(220);
-            }
-        }
-        if (abertos > 0) await esperar(350);
-        return abertos;
-    }
-
-    // ── 2. Mudar todos os dropdowns "Transferir" -> "Desbloquear" ───
+    // ── 1. Mudar todos os dropdowns visíveis "Transferir" -> "Desbloquear" ──
     function listarSelectsTransferir() {
         return Array.from(document.querySelectorAll('mat-select')).filter(function (sel) {
             if (!visivel(sel)) return false;
@@ -289,32 +269,24 @@
         btnSalvar.scrollIntoView({ block: 'center' });
         btnSalvar.click();
 
-        // Aguarda snackbar de confirmação ou modal/botão Protocolar aparecer
-        await esperarAte(function () {
-            return acharCampoSenhaNoModal() ||
-                document.querySelector('button.snack-messenger-close-button') ||
-                acharBotaoProtocolar();
-        }, 5000, 150);
+        // Aguarda o botão Protocolar aparecer após o Salvar (e fecha snackbar OK se vier)
+        btn.textContent = 'Aguardando Protocolar...';
+        var btnProto = await esperarAte(function () {
+            var snackOk = document.querySelector('button.snack-messenger-close-button');
+            if (snackOk && visivel(snackOk)) snackOk.click();
+            return acharBotaoProtocolar();
+        }, 8000, 150);
 
-        var snackOk = document.querySelector('button.snack-messenger-close-button');
-        if (snackOk && visivel(snackOk)) {
-            snackOk.click();
-            await esperar(300);
-        } else {
-            await esperar(400);
+        if (!btnProto) {
+            toast('Salvo! Botão Protocolar não apareceu na tela.', 'aviso');
+            return false;
         }
 
-        // 3b. Se o modal de senha ainda não abriu, clicar em Protocolar
-        if (!acharCampoSenhaNoModal()) {
-            btn.textContent = 'Protocolando...';
-            var btnProto = await esperarAte(acharBotaoProtocolar, 4000, 150);
-            if (!btnProto) {
-                toast('Salvo! Botão Protocolar não encontrado na tela.', 'aviso');
-                return false;
-            }
-            btnProto.scrollIntoView({ block: 'center' });
-            btnProto.click();
-        }
+        // 3b. Clicar em Protocolar para abrir a dialog de senha
+        btn.textContent = 'Protocolando...';
+        btnProto.scrollIntoView({ block: 'center' });
+        await esperar(150);
+        btnProto.click();
 
         // 3c. Aguardar modal "Protocolar - Digite sua senha para confirmar"
         var campoSenha = await esperarAte(acharCampoSenhaNoModal, 6000, 120);
@@ -351,9 +323,6 @@
         btn.style.opacity = '0.75';
 
         try {
-            btn.textContent = 'Expandindo...';
-            await expandirPaineisRecolhidos();
-
             var alterados = await trocarTodosParaDesbloquear(btn);
             console.log('[SisbDesbloquear] dropdowns alterados para Desbloquear valor:', alterados);
 

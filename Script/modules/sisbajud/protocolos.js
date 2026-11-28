@@ -609,6 +609,51 @@
         );
     }
 
+    function lerTotalPaginador() {
+        var lbl = document.querySelector('.mat-paginator-range-label');
+        if (!lbl) return 0;
+        var m = (lbl.textContent || '').match(/de\s+(\d+)/i);
+        return m ? parseInt(m[1], 10) : 0;
+    }
+
+    function lerTextoPaginador() {
+        var lbl = document.querySelector('.mat-paginator-range-label');
+        return lbl ? (lbl.textContent || '').trim() : '';
+    }
+
+    function acharBotaoProximaPagina() {
+        var btn = document.querySelector(
+            'button[aria-label="Próxima página"], button.mat-paginator-navigation-next'
+        );
+        if (!btn) return null;
+        if (btn.disabled || btn.hasAttribute('disabled') || btn.getAttribute('aria-disabled') === 'true') {
+            return null;
+        }
+        return btn;
+    }
+
+    async function avancarProximaPagina() {
+        var btnNext = acharBotaoProximaPagina();
+        if (!btnNext) return false;
+        var labelAntes = lerTextoPaginador();
+        var primeiraChaveAntes = '';
+        var primeiras = listarLinhasNaoEnviadas();
+        if (primeiras.length) primeiraChaveAntes = primeiras[0].chave;
+
+        btnNext.click();
+
+        var mudou = await esperarCondicao(function () {
+            var labelAgora = lerTextoPaginador();
+            if (labelAntes && labelAgora && labelAgora !== labelAntes) return true;
+            var agora = listarLinhasNaoEnviadas();
+            if (agora.length && primeiraChaveAntes && agora[0].chave !== primeiraChaveAntes) return true;
+            return false;
+        }, 10000, 150);
+
+        if (mudou) await esperar(350);
+        return !!mudou;
+    }
+
     var loteOrdemEmAndamento = false;
 
     async function aoClicarBaixarProtocolosOrdem(btn) {
@@ -625,14 +670,16 @@
         modoCaptura = true;
         btn.disabled = true;
 
-        var totalAlvo = iniciais.length;
+        var totalPaginador = lerTotalPaginador();
+        var totalAlvo = totalPaginador > iniciais.length ? totalPaginador : iniciais.length;
         var processados = new Set();
         var capturados = [];
         var falhas = 0;
         var contador = 0;
+        var limiteSeguranca = Math.max(totalAlvo + 20, 100);
 
         try {
-            while (contador < totalAlvo + 5) {
+            while (contador < limiteSeguranca) {
                 var disponiveis = listarLinhasNaoEnviadas();
                 var proximo = null;
                 for (var i = 0; i < disponiveis.length; i++) {
@@ -641,7 +688,13 @@
                         break;
                     }
                 }
-                if (!proximo) break;
+
+                // Se todas da página atual já foram processadas, tenta avançar no paginador
+                if (!proximo) {
+                    var avancou = await avancarProximaPagina();
+                    if (!avancou) break;
+                    continue;
+                }
 
                 processados.add(proximo.chave);
                 contador++;

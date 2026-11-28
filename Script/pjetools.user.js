@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.6.93
+// @version      2.6.94
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
@@ -109,7 +109,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/extrair.js?v=1.0.1
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/desbloquear.js?v=1.0.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/series.js?v=1.0.4
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/879015c0933a/Script/modules/gigs/atividades.js?v=1.2.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/ee91b6a56e09/Script/modules/gigs/atividades.js?v=1.2.1
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=2.8.0
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=2.1.12
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/saldo_extracao.js?v=2.1.1
@@ -128,7 +128,7 @@
 // ==/UserScript==
 (async function () {
     'use strict';
-    console.log('[Loader] PJe Tools Pro v2.6.93 loaded');
+    console.log('[Loader] PJe Tools Pro v2.6.94 loaded');
 
     const url = window.location.href;
 

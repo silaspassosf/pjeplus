@@ -24,6 +24,14 @@ Objetivo: entregar edições reais rápido, sem loop de exploração.
   - **Checagem inicial:** rodar `py tools/cdp_lab.py status`; se estiver inativo na porta `9222`, subir com `py tools/cdp_lab.py abrir --headless` (ou pedir ao usuário para executar `PJePlus_CDP_Lab.bat` no Desktop) antes de consultar `goto` / `dom --html` / `eval` / `inject`.
 - Só considere concluído quando o efeito estiver comprovado na saída do comando.
 
+## Pasta `Script/` (Tampermonkey — publicação obrigatória)
+- Sempre que alterar qualquer arquivo dentro de `Script/`:
+  1. Validar com `node --check <arquivo>`.
+  2. Commitar e dar `git push` dos arquivos editados em `Script/` (para publicar no GitHub e gerar o novo SHA quando o módulo estiver pinado por commit).
+  3. Atualizar o orquestrador respectivo (ex.: `Script/pjetools.user.js`): fazer bump do `@version` (e do log de versão), subir o `?v=` do `@require` do módulo alterado e, se o `@require` estiver preso a um SHA de commit, trocar pelo novo SHA (12 caracteres).
+  4. Validar o orquestrador com `node --check`, commitar e dar `git push` do orquestrador também.
+  - Não considerar a alteração em `Script/` concluída sem o bump + commit + push do módulo e do orquestrador.
+
 ## Estilo
 - Português do Brasil, direto, sem preâmbulo.
 - Nada de "vou analisar" sem ação na sequência.

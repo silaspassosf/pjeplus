@@ -1464,7 +1464,10 @@ window.injetarBotaoLivresPainelGlobal = injetarBotaoLivresPainelGlobal;
         return { id: null, status: ultimo };
     }
 
-    function urlDetalhe(id) { return PJE + '/pjekz/processo/' + id + '/detalhe'; }
+    // rota: 'detalhe' (padrão) | 'anexar' (tela de anexar documento)
+    function urlProcesso(id, rota) {
+        return PJE + '/pjekz/processo/' + id + '/' + (rota === 'anexar' ? 'documento/anexar' : 'detalhe');
+    }
 
     // ── abre a aba e tenta trazê-la para frente ─────────────────────
     // GM_openInTab({active:true}) é o que funciona no Firefox: window.focus() de script é
@@ -1485,9 +1488,9 @@ window.injetarBotaoLivresPainelGlobal = injetarBotaoLivresPainelGlobal;
     }
 
     // numero: '1000478-63.2025.5.02.0703' (aceita com/sem pontuação, ou o texto da página)
-    // opcoes: { grau: 1|2, focar: true }
+    // opcoes: { grau: 1|2, focar: true, rota: 'detalhe'|'anexar' }
     async function abrir_processo_direto(numero, opcoes) {
-        const opts = Object.assign({ focar: true }, opcoes || {});
+        const opts = Object.assign({ focar: true, rota: 'detalhe' }, opcoes || {});
         try {
             const alvo = numeroCompleto(numero)
                 || numeroCompleto((document.body && document.body.innerText) || '')
@@ -1507,12 +1510,12 @@ window.injetarBotaoLivresPainelGlobal = injetarBotaoLivresPainelGlobal;
                 };
             }
 
-            const url = urlDetalhe(achado.id);
+            const url = urlProcesso(achado.id, opts.rota);
             const aba = await abrirAba(url, opts.focar);
             console.log('%c[abrir_processo_direto] ' + achado.registro.classe + ' ' + alvo +
                 ' → ' + url, 'font-weight:bold;color:#1976d2');
             return {
-                ok: true, numero: alvo, id: achado.id, grau: achado.grau,
+                ok: true, numero: alvo, id: achado.id, grau: achado.grau, rota: opts.rota,
                 classe: achado.registro.classe || '', url: url, aba: !!aba, focou: opts.focar !== false
             };
         } catch (e) {

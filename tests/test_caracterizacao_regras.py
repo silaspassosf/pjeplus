@@ -319,6 +319,17 @@ class TestCaracterizacaoMandado(unittest.TestCase):
         )
         self.assertEqual(_classificar_certidao_oficial(texto_real), "negativo")
 
+        # Caso real (ATSum 1000212-42.2026.5.02.0703): devolução por empresa que saiu do local,
+        # sem nenhuma menção a "penhora" — deve casar como negativo.
+        texto_devolucao_empresa_saiu = (
+            "CERTIDÃO DE DEVOLUÇÃO DE MANDADO\n"
+            "explicou que a empresa Lume Serviços Gerais funcionava na sala 3, mas havia saído do local "
+            "a cerca de 6 anos, e não sabia do seu paradeiro correto, e, assim, diante das informações "
+            "obtidas no local, DEIXEI DE PROSSEGUIR NO CUMPRIMENTO DO MANDADO, pois o destinatário não "
+            "ocupava mais o endereço, e restituo o presente para a Douta apreciação do Juízo competente."
+        )
+        self.assertEqual(_classificar_certidao_oficial(texto_devolucao_empresa_saiu), "negativo")
+
         # Teste com padrões individuais
         self.assertEqual(_classificar_certidao_oficial("deixo de realizar a diligencia"), "negativo")
         self.assertEqual(_classificar_certidao_oficial("empresa nao esta instalada no local"), "negativo")
@@ -566,6 +577,71 @@ class TestCaracterizacaoP2B(unittest.TestCase):
         casada = _casas_regra(normalizar_texto('Julgo extinta a presente execução, nos termos do art. 924 do CPC.'))
         self.assertIsNotNone(casada)
         self.assertEqual(getattr(casada[1][0], '__name__', str(casada[1][0])), '_mov_arquivar_se_sem_prazo')
+
+    def test_p2b_incidente_instaurado_em_face_exige_cenario_posterior(self):
+        """A regra IDPJ aceita cenário 1 ou 2 somente após a sentença-âncora."""
+        from Prazo.p2b_documentos import _incidente_posteriores, _incidente_cenario, _casas_regra
+        import Prazo.p2b_documentos as doc
+        from Fix.utils import normalizar_texto
+
+        timeline = [
+            {'id': 10, 'tipo': 'Sentença', 'dataJuntada': '2026-01-01T10:00:00Z'},
+            {'id': 11, 'tipo': 'Intimação', 'dataJuntada': '2026-01-02T10:00:00Z'},
+            {'id': 12, 'tipo': 'Certidão', 'titulo': 'Certidão de pesquisa patrimonial', 'dataJuntada': '2026-01-03T10:00:00Z'},
+            {'id': 13, 'tipo': 'Mandado', 'dataJuntada': '2026-01-04T15:00:00Z'},
+        ]
+        posteriores = _incidente_posteriores(timeline, '10', None)
+        self.assertEqual(_incidente_cenario(posteriores, {'12'}), 'cenario_1')
+        self.assertEqual({item['id'] for item, _ in posteriores}, {11, 12, 13})
+
+        timeline_cenario_2 = [
+            {'id': 20, 'tipo': 'Sentença', 'dataJuntada': '2026-01-01T10:00:00Z'},
+            {'id': 21, 'tipo': 'Mandado', 'dataJuntada': '2026-01-02T10:00:00Z'},
+            {'id': 22, 'tipo': 'Edital', 'dataJuntada': '2026-01-04T10:00:00Z'},
+        ]
+        posteriores = _incidente_posteriores(timeline_cenario_2, '20', None)
+        self.assertEqual(_incidente_cenario(posteriores, set()), 'cenario_2')
+
+        timeline_mesma_data = [
+            {'id': 30, 'tipo': 'Sentença', 'dataJuntada': '2026-01-01T10:00:00Z'},
+            {'id': 31, 'tipo': 'Mandado', 'dataJuntada': '2026-01-02T10:00:00Z'},
+            {'id': 32, 'tipo': 'Edital', 'dataJuntada': '2026-01-02T16:00:00Z'},
+        ]
+        posteriores = _incidente_posteriores(timeline_mesma_data, '30', None)
+        self.assertIsNone(_incidente_cenario(posteriores, set()))
+
+        timeline_sem_cenario = [
+            {'id': 40, 'tipo': 'Sentença', 'dataJuntada': '2026-01-01T10:00:00Z'},
+            {'id': 41, 'tipo': 'Intimação', 'dataJuntada': '2026-01-02T10:00:00Z'},
+        ]
+        posteriores = _incidente_posteriores(timeline_sem_cenario, '40', None)
+        self.assertIsNone(_incidente_cenario(posteriores, set()))
+
+        casada = _casas_regra(normalizar_texto(
+            'Incidente de Desconsideração da Personalidade Jurídica instaurado em face da executada'
+        ))
+        self.assertIsNotNone(casada)
+        self.assertEqual(
+            getattr(casada[1][0], '__name__', str(casada[1][0])),
+            '_ato_incidente_instaurado_em_face',
+        )
+
+        from unittest.mock import patch, MagicMock
+        from Prazo.p2b_documentos import _ato_incidente_instaurado_em_face
+        driver = MagicMock()
+        client = MagicMock()
+        client.timeline.return_value = timeline
+        client.documento_por_id.return_value = {'anexos': [{'tipo': 'INFOJUD'}]}
+        ato_termo = MagicMock(return_value=True)
+        with patch('Prazo.p2b_gateway._criar_api_client', return_value=client), patch(
+            'Fix.variaveis.obter_texto_documento', return_value='certidão com rastreamento'
+        ), patch('Mandado.anexos_argos._identificar_tipo_anexo', return_value='infojud'), patch.object(
+            doc, '_lazy_import', return_value={'ato_termoS': ato_termo}
+        ):
+            self.assertTrue(_ato_incidente_instaurado_em_face(
+                driver, {'id_processo': '123', 'id_documento': '10', 'data_extraida': '2026-01-01T10:00:00Z'}
+            ))
+        ato_termo.assert_called_once_with(driver)
 
     def test_p2b_engine_api_classifica_por_regra(self):
         """Camada API-first: texto da decisão vindo da API decide se abre o processo."""

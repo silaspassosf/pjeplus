@@ -1060,13 +1060,16 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                 from datetime import datetime as _dt
                 from Fix.atualizacao_rapida import _GAP_DIAS_CALCULO
                 _dt_divida = _dt.strptime(_data_divida, '%d/%m/%Y')
-                if (_dt.now() - _dt_divida).days > _GAP_DIAS_CALCULO:
+                _idade_calc = (_dt.now() - _dt_divida).days
+                if _idade_calc > _GAP_DIAS_CALCULO:
                     pendencia = 'calculo_antigo'
                     if log:
-                        logger.info(f'[SISBAJUD]  Pendência: cálculo de {_data_divida} (>{_GAP_DIAS_CALCULO} dias)')
+                        logger.info(f'[SISBAJUD]  Pendência: cálculo de {_data_divida} ({_idade_calc}d > {_GAP_DIAS_CALCULO}d)')
                     pendencia, valor = _atualizar_calculo_antigo(driver_pje, dados_processo, valor, log=log)
-            except Exception:
-                pass
+                elif log:
+                    logger.info(f'[SISBAJUD]  Cálculo de {_data_divida} ({_idade_calc}d <= {_GAP_DIAS_CALCULO}d) — atualização rápida dispensada')
+            except Exception as _e_dt:
+                logger.warning(f'[SISBAJUD]  Falha ao avaliar data do cálculo ({_data_divida!r}): {_e_dt}')
 
         if log:
             logger.info(f'[SISBAJUD]  Valor encontrado: {valor} - prosseguindo com minuta')
@@ -1158,7 +1161,12 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
             prazo_dias = 30
         logger.info('[SISBAJUD] prazo_dias aplicado na minuta: %s', prazo_dias)
 
-        campos_preenchidos = helpers._preencher_campos_iniciais(driver, dados_processo, prazo_dias)
+        agendar_m1 = (pendencia == 'sem_calculo')
+        offset_m1 = 2 if pendencia == 'sem_calculo' else 0
+        campos_preenchidos = helpers._preencher_campos_iniciais(
+            driver, dados_processo, prazo_dias,
+            agendar_amanha=agendar_m1, agendar_offset=offset_m1
+        )
         if not campos_preenchidos:
             resultado['status'] = 'erro'
             resultado['erros'].append('Falha ao preencher campos iniciais')
@@ -1278,18 +1286,24 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                     elif log:
                         logger.info('[SISBAJUD]  Falha ao aplicar visibilidade para certidão sigilosa')
 
-                    gigs_prazo = '41' if prazo_dias == 60 else '22'
+                    from .processamento.minutas_campos import calcular_prazo_gigs_dias_corridos
+                    gigs_dias, data_prot_1 = calcular_prazo_gigs_dias_corridos(
+                        prazo_dias, offset_primeiro_protocolo=offset_m1
+                    )
+                    gigs_prazo = str(gigs_dias)
                     if pendencia in ('calculo_antigo', 'sem_calculo'):
                         gigs_str = f'{gigs_prazo}/xs resultado CALC'
                     else:
                         gigs_str = f'{gigs_prazo}/xs resultado'
                     if log:
-                        logger.info(f'[SISBAJUD] Criando GIGS {gigs_str}...')
-                    resultado_gigs = criar_gigs(driver_pje, gigs_str, log=log)
+                        logger.info(
+                            f'[SISBAJUD] Criando GIGS {gigs_str} (dias corridos; 1º protocolo={data_prot_1.strftime("%d/%m/%Y")})...'
+                        )
+                    resultado_gigs = criar_gigs(driver_pje, gigs_str, log=log, dias_corridos=True)
                     if resultado_gigs and log:
-                        logger.info(f'[SISBAJUD]  GIGS {gigs_str} criado')
+                        logger.info(f'[SISBAJUD]  GIGS {gigs_str} (dias corridos) criado')
                     elif log:
-                        logger.info(f'[SISBAJUD]  GIGS {gigs_str} não foi criado')
+                        logger.info(f'[SISBAJUD]  GIGS {gigs_str} (dias corridos) não foi criado')
 
                     if pendencia == 'sem_calculo':
                         if log:
@@ -1970,13 +1984,16 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                 from datetime import datetime as _dt
                 from Fix.atualizacao_rapida import _GAP_DIAS_CALCULO
                 _dt_divida = _dt.strptime(_data_divida, '%d/%m/%Y')
-                if (_dt.now() - _dt_divida).days > _GAP_DIAS_CALCULO:
+                _idade_calc = (_dt.now() - _dt_divida).days
+                if _idade_calc > _GAP_DIAS_CALCULO:
                     pendencia = 'calculo_antigo'
                     if log:
-                        logger.info(f'[SISBAJUD]  Pendência: cálculo de {_data_divida} (>{_GAP_DIAS_CALCULO} dias)')
+                        logger.info(f'[SISBAJUD]  Pendência: cálculo de {_data_divida} ({_idade_calc}d > {_GAP_DIAS_CALCULO}d)')
                     pendencia, valor = _atualizar_calculo_antigo(driver_pje, dados_processo, valor, log=log)
-            except Exception:
-                pass
+                elif log:
+                    logger.info(f'[SISBAJUD]  Cálculo de {_data_divida} ({_idade_calc}d <= {_GAP_DIAS_CALCULO}d) — atualização rápida dispensada')
+            except Exception as _e_dt:
+                logger.warning(f'[SISBAJUD]  Falha ao avaliar data do cálculo ({_data_divida!r}): {_e_dt}')
 
         dados_validos, numero_processo = helpers._validar_dados(dados_processo)
         if not dados_validos:
@@ -2003,10 +2020,11 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                 resultado['erros'].append('1ª minuta: Botão "Nova Minuta" não encontrado')
                 return resultado
 
-        agendar_m1 = False
+        agendar_m1 = (pendencia == 'sem_calculo')
+        offset_m1 = 2 if pendencia == 'sem_calculo' else 0
         campos_ok = helpers._preencher_campos_iniciais(
             driver, dados_processo, prazo_dias,
-            agendar_amanha=agendar_m1, agendar_offset=1
+            agendar_amanha=agendar_m1, agendar_offset=offset_m1
         )
         if not campos_ok:
             resultado['status'] = 'erro'
@@ -2067,7 +2085,7 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         try:
             from .processamento.minutas_campos import _preencher_campos_iniciais as preencher_campos_atualizado
             agendar_m2 = True
-            offset_m2 = 2 if pendencia == 'sem_calculo' else 1
+            offset_m2 = offset_m1 + 1
             campos_ok_2 = preencher_campos_atualizado(
                 driver, dados_processo, prazo_dias=prazo_dias,
                 agendar_amanha=agendar_m2, agendar_offset=offset_m2
@@ -2247,14 +2265,20 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                     vis_ok = executar_visibilidade_sigilosos_se_necessario(driver_pje, True, debug=log)
                     resultado['visibilidade_certidao_sigilosa'] = bool(vis_ok)
 
-                    gigs_prazo = '41' if prazo_dias == 60 else '22'
+                    from .processamento.minutas_campos import calcular_prazo_gigs_dias_corridos
+                    gigs_dias, data_prot_1 = calcular_prazo_gigs_dias_corridos(
+                        prazo_dias, offset_primeiro_protocolo=offset_m1
+                    )
+                    gigs_prazo = str(gigs_dias)
                     if pendencia in ('calculo_antigo', 'sem_calculo'):
                         gigs_str = f'{gigs_prazo}/xs resultado CALC'
                     else:
                         gigs_str = f'{gigs_prazo}/xs resultado'
                     if log:
-                        logger.info(f'[SISBAJUD] Criando GIGS {gigs_str}...')
-                    resultado_gigs = criar_gigs(driver_pje, gigs_str, log=log)
+                        logger.info(
+                            f'[SISBAJUD] Criando GIGS {gigs_str} (dias corridos; 1º protocolo={data_prot_1.strftime("%d/%m/%Y")})...'
+                        )
+                    resultado_gigs = criar_gigs(driver_pje, gigs_str, log=log, dias_corridos=True)
 
                     if pendencia == 'sem_calculo':
                         if log:

@@ -1293,6 +1293,8 @@ PADRAO_NEGATIVO = (
     "deixei de comparecer",
     "deixei de intimar",
     "deixei de penhorar",
+    "deixei de prosseguir no cumprimento do mandado",
+    "nao ocupava mais o endereco",
     "deixo de realizar",
     "nao logrei exito",
     "desconhecido no local",

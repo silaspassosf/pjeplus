@@ -112,6 +112,40 @@ def _proximo_dia_util(data):
     return proximo_dia_util(data, inclusive=True)
 
 
+def calcular_data_protocolo(agora=None, agendar_offset=1):
+    """Calcula a data de protocolo da minuta agendada a partir da data efetiva da 1ª minuta.
+
+    Regras:
+    - Se `agora` >= 19h (ou em dia não útil), a 1ª minuta — mesmo não agendada — só
+      efetiva no próximo dia útil (`data_primeira`).
+    - A 2ª minuta (agendada) avança `agendar_offset` dias úteis a partir de `data_primeira`,
+      garantindo que nunca caia no mesmo dia útil da 1ª minuta.
+    """
+    agora = agora or datetime.now()
+    if agora.hour >= 19:
+        data_primeira = _proximo_dia_util((agora + timedelta(days=1)).date())
+    else:
+        data_primeira = _proximo_dia_util(agora.date())
+
+    alvo = data_primeira
+    for _ in range(max(0, int(agendar_offset or 0))):
+        alvo = _proximo_dia_util(alvo + timedelta(days=1))
+    return alvo
+
+
+def calcular_prazo_gigs_dias_corridos(prazo_dias, agora=None, offset_primeiro_protocolo=0):
+    """Calcula o prazo em dias corridos (a partir de hoje) para o GIGS `xs resultado`
+    cair 30 ou 60 dias corridos após a data definida do 1º protocolo.
+    """
+    agora = agora or datetime.now()
+    base_prazo = 60 if prazo_dias == 60 else 30
+    data_primeiro_protocolo = calcular_data_protocolo(
+        agora, agendar_offset=offset_primeiro_protocolo
+    )
+    data_alvo = data_primeiro_protocolo + timedelta(days=base_prazo)
+    return max(base_prazo, (data_alvo - agora.date()).days), data_primeiro_protocolo
+
+
 def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanha=False, agendar_offset=1):
     """Preenche campos iniciais da minuta de bloqueio (prazo_dias=0 -> amanhã para teimosinha)."""
     try:
@@ -137,8 +171,7 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
             prazo_dias = 30
 
         _agora = datetime.now()
-        _offset = agendar_offset + (1 if _agora.hour >= 19 else 0)
-        _amanha = _proximo_dia_util((_agora + timedelta(days=_offset)).date())
+        _amanha = calcular_data_protocolo(_agora, agendar_offset=agendar_offset)
 
         _ag_ano = _amanha.year
         _ag_mes = _amanha.month - 1
@@ -223,7 +256,9 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
 
         numdias = prazo_dias
         hoje = datetime.now()
-        data_fim = _proximo_dia_util((hoje + timedelta(days=numdias + 1)).date())
+        # Data limite de bloqueio usa dias corridos (não empurrar para próximo dia útil
+        # em fins de semana/recesso); apenas a data de protocolo (_amanha) usa dias úteis/horário.
+        data_fim = (hoje + timedelta(days=numdias + 1)).date()
 
         ano = data_fim.year
         mes_d = data_fim.month - 1

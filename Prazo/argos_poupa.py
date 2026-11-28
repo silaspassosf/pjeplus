@@ -752,7 +752,7 @@ def _dividir_e_salvar_pdf(
     return saida
 
 
-def _extrair_matricula_e_cartorio_texto(texto: str) -> Tuple[List[str], str]:
+def _extrair_matricula_e_cartorio_texto(texto: str, *, de_nome_arquivo: bool = False) -> Tuple[List[str], str]:
     s = re.sub(r"\.pdf$", "", str(texto or ""), flags=re.I)
     s = re.sub(r"[_]+", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
@@ -760,29 +760,45 @@ def _extrair_matricula_e_cartorio_texto(texto: str) -> Tuple[List[str], str]:
         return [], ""
 
     matriculas: List[str] = []
+    # 1) CNM (Código Nacional de Matrícula): 113746.2.0211590-94 -> 211590
+    for m_cnm in re.finditer(r"\b\d{6}\.\d\.(\d{7})-\d{2}\b", s):
+        limpa = str(int(m_cnm.group(1)))
+        if 2 <= len(limpa) <= 10 and limpa not in matriculas:
+            matriculas.append(limpa)
+
+    # 2) Palavra-chave explícita: Matrícula / Matr. / Mat.
     for m_mat in re.finditer(r"(?:matr[ií]cula|matr\.?|mat\.?)\s*(?:n[º°o\.]*)?\s*[:\-]?\s*(\d{1,3}(?:\.\s*\d{3})+|\d{2,10})", s, re.I):
         limpa = re.sub(r"[\.\s]+", "", m_mat.group(1))
         if 2 <= len(limpa) <= 10 and limpa not in matriculas:
             matriculas.append(limpa)
 
+    # 3) Prefixo curto em nomes de arquivo ARISP: "m185519-1-20", "m94308_compressed-1-15"
+    if de_nome_arquivo and not matriculas:
+        for m_short in re.finditer(r"(?:^|[\s\-])m[\s.\-]?(\d{3,10})(?=[\s\-]|$)", s, re.I):
+            limpa = m_short.group(1)
+            if limpa not in matriculas:
+                matriculas.append(limpa)
+
     cartorio = ""
+    # Regex restrita para evitar falsos positivos (ex.: "3 ori", "7Ri", "1RI")
     m_cri = re.search(
-        r"(\d+\s*[º°oª]?\s*(?:oficial\s+de\s+)?(?:registro\s+de\s+im[oó]veis|c\.?\s*r\.?\s*i\.?|r\.?\s*i\.?)"
-        r"(?:\s+(?:de|da|do)\s+[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+){0,2})?)",
+        r"\b(\d{1,2}\s*(?:[º°ª]\s*)?(?:oficial\s+de\s+)?(?:registro\s+de\s+im[oó]veis|c\.?\s*r\.?\s*i\.?)"
+        r"|\d{1,2}\s*[º°ª]\s*r\.?\s*i\.?|\d{1,2}\s+r\.?\s*i\.?)\b"
+        r"(?:\s+(?:de|da|do)\s+[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+){0,2})?",
         s,
         re.I,
     )
     if m_cri:
-        c = m_cri.group(1)
+        c = m_cri.group(0)
         c = re.sub(r"oficial\s+de\s+registro\s+de\s+im[oó]veis", "CRI", c, flags=re.I)
         c = re.sub(r"registro\s+de\s+im[oó]veis", "CRI", c, flags=re.I)
         c = re.sub(r"c\.?\s*r\.?\s*i\.?", "CRI", c, flags=re.I)
         cartorio = re.sub(r"\s+", " ", c).strip()
     else:
-        m_cart = re.search(r"((?:\d+\s*[º°oª]?\s*)?cart[oó]rio\s+[A-Za-zÀ-ÿ0-9º°ª]+(?:\s+[A-Za-zÀ-ÿ0-9º°ª]+){0,3})", s, re.I)
+        m_cart = re.search(r"\b((?:\d{1,2}\s*[º°ª]\s*)?cart[oó]rio\s+[A-Za-zÀ-ÿ0-9º°ª]+(?:\s+[A-Za-zÀ-ÿ0-9º°ª]+){0,3})", s, re.I)
         if m_cart:
             cartorio = re.sub(r"\s+", " ", m_cart.group(1)).strip()
-        else:
+        elif de_nome_arquivo:
             m_seg = re.search(
                 r"(?:matr[ií]cula|matr\.?|mat\.?)\s*[\d\.\s]+\s*[-–]\s*([A-Za-zÀ-ÿ0-9º°ª\s]{2,24}?)(?:\s*[-–]\s*(?:proc|peeq|otim|$)|$)",
                 s,
@@ -794,11 +810,11 @@ def _extrair_matricula_e_cartorio_texto(texto: str) -> Tuple[List[str], str]:
     return matriculas, cartorio
 
 
-def _extrair_info_arisp_de_fontes(fontes: Sequence[str]) -> str:
+def _extrair_info_arisp_de_fontes(fontes: Sequence[str], *, de_nome_arquivo: bool = False) -> str:
     mats: List[str] = []
     cartorio = ""
     for f in fontes:
-        ms, c = _extrair_matricula_e_cartorio_texto(f)
+        ms, c = _extrair_matricula_e_cartorio_texto(f, de_nome_arquivo=de_nome_arquivo)
         for m in ms:
             if m not in mats:
                 mats.append(m)
@@ -815,6 +831,31 @@ def _extrair_info_arisp_de_fontes(fontes: Sequence[str]) -> str:
     return " - ".join(partes)
 
 
+def _chave_conteudo_pdf_arisp(texto_pdf: str, num_paginas: int) -> str:
+    s = str(texto_pdf or "")
+    if not s:
+        return ""
+    m_cnm = re.search(r"\b(\d{6}\.\d\.\d{7}-\d{2})\b", s)
+    if m_cnm:
+        return f"CNM:{m_cnm.group(1)}|{num_paginas}"
+    m_ped = re.search(r"pedido\s*n[º°o\.]*\s*[:\-]?\s*(\d{1,3}(?:\.\d{3})+|\d{4,12})", s, re.I)
+    if m_ped:
+        return f"PED:{re.sub(r'[^0-9]', '', m_ped.group(1))}|{num_paginas}"
+    return ""
+
+
+def _eh_nome_generico_arisp(nome_arq: str) -> bool:
+    norm = _norm_cmp(nome_arq or "")
+    if not norm:
+        return True
+    if norm.startswith("CONSULTA NA ARISP"):
+        return True
+    mats, _ = _extrair_matricula_e_cartorio_texto(nome_arq, de_nome_arquivo=True)
+    if not mats and re.match(r"^(?:ARISP|ANEXO|CERTIDAO|DOCUMENTO)\b", norm):
+        return True
+    return False
+
+
 def _mesclar_lote_em_pdf(
     client: Any,
     numero_processo: str,
@@ -823,6 +864,8 @@ def _mesclar_lote_em_pdf(
     *,
     max_bytes: int = MAX_PDF_BYTES,
     enriquecer_nome_arisp: bool = False,
+    dedup_conteudo_arisp: bool = False,
+    matriculas_emitidas_global: Optional[set] = None,
     nome_curto_empresa: str = "",
     arquivos_pre_filtrados: Optional[Sequence[Tuple[Dict[str, Any], Dict[str, Any]]]] = None,
 ) -> List[Dict[str, Any]]:
@@ -850,7 +893,7 @@ def _mesclar_lote_em_pdf(
                     fontes_arisp.append(doc_cert[pi].get_text("text") or "")
             pdf_final.insert_pdf(doc_cert)
 
-        # 2. Anexos de cada tarefa (ou lista pré-filtrada para ARISP 1 arquivo por PDF)
+        # 2. Anexos de cada tarefa (ou lista pré-filtrada para ARISP)
         fila_anexos: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
         if arquivos_pre_filtrados is not None:
             fila_anexos = list(arquivos_pre_filtrados)
@@ -862,10 +905,11 @@ def _mesclar_lote_em_pdf(
                     fila_anexos.append((t, arq))
 
         hashes_inseridos: set = set()
+        chaves_conteudo_inseridas: set = set()
         for t, arq in fila_anexos:
             id_arq = arq.get("id")
             nome_arq = str(arq.get("nomeArquivo") or f"anexo_{id_arq}.pdf")
-            if enriquecer_nome_arisp and nome_arq:
+            if enriquecer_nome_arisp and nome_arq and not _eh_nome_generico_arisp(nome_arq):
                 fontes_arisp.append(nome_arq)
             if not id_arq:
                 continue
@@ -874,14 +918,29 @@ def _mesclar_lote_em_pdf(
                 raw, ctype = _baixar_arquivo_anexo(client, t["idTarefa"], t["idResultado"], id_arq)
                 sig_md5 = hashlib.md5(raw).hexdigest()
                 if sig_md5 in hashes_inseridos:
-                    avisos.append(f"Anexo duplicado ignorado: {nome_arq}")
+                    avisos.append(f"Anexo duplicado ignorado (bytes): {nome_arq}")
                     continue
                 hashes_inseridos.add(sig_md5)
                 if raw[:5] == b"%PDF-" or "pdf" in ctype:
                     with fitz.open(stream=raw, filetype="pdf") as doc_anx:
-                        if enriquecer_nome_arisp:
-                            for pi in range(min(2, doc_anx.page_count)):
-                                fontes_arisp.append(doc_anx[pi].get_text("text") or "")
+                        txt_pdf = ""
+                        if (enriquecer_nome_arisp or dedup_conteudo_arisp) and doc_anx.page_count > 0:
+                            idxs_txt = sorted({0, min(1, doc_anx.page_count - 1), doc_anx.page_count - 1})
+                            txt_pdf = "\n".join((doc_anx[pi].get_text("text") or "") for pi in idxs_txt)
+                            if enriquecer_nome_arisp and txt_pdf.strip():
+                                fontes_arisp.append(txt_pdf)
+                        if dedup_conteudo_arisp and txt_pdf.strip():
+                            chave_cont = _chave_conteudo_pdf_arisp(txt_pdf, doc_anx.page_count)
+                            if chave_cont and chave_cont in chaves_conteudo_inseridas:
+                                avisos.append(f"Anexo duplicado ignorado ({chave_cont}): {nome_arq}")
+                                continue
+                            if chave_cont:
+                                chaves_conteudo_inseridas.add(chave_cont)
+                            if matriculas_emitidas_global is not None:
+                                mats_txt, _ = _extrair_matricula_e_cartorio_texto(txt_pdf, de_nome_arquivo=False)
+                                if len(mats_txt) == 1 and mats_txt[0] in matriculas_emitidas_global:
+                                    avisos.append(f"Matrícula já emitida ignorada (Mat {mats_txt[0]}): {nome_arq}")
+                                    continue
                         pdf_final.insert_pdf(doc_anx)
                     anexos_mesclados += 1
                 elif any(ext in ctype or nome_arq.lower().endswith(ext) for ext in ("png", "jpg", "jpeg")):

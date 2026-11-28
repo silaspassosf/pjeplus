@@ -148,13 +148,7 @@ def _clicar_salvar(driver: Any, log: bool = False) -> bool:
         btn_salvar = espera.elemento(driver, xpath_salvar, teto=2)
         if btn_salvar:
             safe_click_no_scroll(driver, btn_salvar)
-            seletores_loading = (
-                'mat-progress-spinner, mat-spinner, mat-progress-bar, '
-                '.loading-spinner, .loading-overlay, pje-dialogo-status-progresso'
-            )
-            if espera.ate_aparecer(driver, seletores_loading, teto=1.5):
-                espera.ate_sumir(driver, seletores_loading, teto=20)
-            espera.ate_sumir(driver, 'mat-dialog-container', teto=10)
+            espera.ate_sumir(driver, 'mat-dialog-container, pje-dialogo-status-progresso', teto=15)
             espera.ate_sumir(driver, '.cdk-overlay-backdrop, .modal-backdrop', teto=5)
             return True
         return False

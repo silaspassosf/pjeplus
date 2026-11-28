@@ -983,7 +983,9 @@ def fluxo_pz(driver: Any) -> None:
 
     texto_normalizado = normalizar_texto(texto_formatado)
     try:
-        resultado_regras = _processar_regras_gerais(driver, texto_normalizado, 0)
+        resultado_regras = _processar_regras_gerais(
+            driver, texto_normalizado, 0, contexto_documento=resultado
+        )
 
         if resultado_regras is False:
             logger.warning('[FLUXO_PZ] Regra casou mas ação falhou (retornou False)')

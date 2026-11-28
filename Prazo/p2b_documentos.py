@@ -329,6 +329,162 @@ def _remover_gigs_xs1(driver: Any, max_tentativas: int = 5) -> bool:
     return True
 
 
+def _texto_item_timeline_incidente(item: dict) -> str:
+    """Consolida os campos descritivos usados para classificar documentos da timeline."""
+    from Fix.utils import normalizar_texto
+
+    campos = ('tipo', 'titulo', 'descricao', 'nomeDocumento', 'nomeArquivo')
+    return normalizar_texto(' '.join(str(item.get(campo) or '') for campo in campos))
+
+
+def _data_item_timeline_incidente(item: dict, fallback: Optional[str] = None):
+    """Converte a data usual da API PJe para datetime UTC; retorna None se ausente/inválida."""
+    from datetime import datetime, timezone
+
+    valor = item.get('dataJuntada') or item.get('dataCadastro') or item.get('data') or fallback
+    if not valor:
+        return None
+    try:
+        data = datetime.fromisoformat(str(valor).replace('Z', '+00:00'))
+        if data.tzinfo is None:
+            data = data.replace(tzinfo=timezone.utc)
+        return data.astimezone(timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def _incidente_posteriores(timeline: list, id_documento_ancora: str, data_ancora: Optional[str] = None) -> list:
+    """[(item, data)] da timeline com data (por dia) posterior à âncora; vazio se âncora/data ausente."""
+    ancora = next(
+        (item for item in timeline if str(item.get('id') or item.get('idDocumento') or '') == str(id_documento_ancora)),
+        None,
+    )
+    if not ancora:
+        return []
+    dt_ancora = _data_item_timeline_incidente(ancora, data_ancora)
+    if dt_ancora is None:
+        return []
+
+    posteriores = []
+    for item in timeline:
+        dt_item = _data_item_timeline_incidente(item)
+        if dt_item is not None and dt_item.date() > dt_ancora.date():
+            posteriores.append((item, dt_item))
+    return posteriores
+
+
+def _incidente_cenario(posteriores: list, certidoes_rastreamento: set):
+    """Cenário confirmado nos itens posteriores: 'cenario_1', 'cenario_2' ou None."""
+    textos = [(item, dt, _texto_item_timeline_incidente(item)) for item, dt in posteriores]
+    tem_intimacao = any('intimacao' in texto for _, _, texto in textos)
+    tem_rastreamento = any(
+        'certidao' in texto and ('rastream' in texto or str(item.get('id') or item.get('idDocumento') or '') in certidoes_rastreamento)
+        for item, _, texto in textos
+    )
+    tem_mandado = any('mandado' in texto for _, _, texto in textos)
+    if tem_intimacao and tem_rastreamento and tem_mandado:
+        return 'cenario_1'
+
+    datas_mandado_edital = {
+        dt.date()
+        for _, dt, texto in textos
+        if 'mandado' in texto or 'edital' in texto
+    }
+    if len(datas_mandado_edital) >= 2:
+        return 'cenario_2'
+    return None
+
+
+def _ato_incidente_instaurado_em_face(driver: Any, contexto_documento: Optional[dict] = None):
+    """Só atua após o cenário IDPJ ser confirmado na timeline posterior à decisão-âncora."""
+    contexto = contexto_documento or {}
+    id_processo = contexto.get('id_processo')
+    id_ancora = contexto.get('id_documento')
+    if not id_processo or not id_ancora:
+        logger.info('[FLUXO_PZ][IDPJ] Sem ID de processo/documento âncora; nenhuma ação')
+        return None
+
+    try:
+        from .p2b_gateway import _criar_api_client
+        client = _criar_api_client(driver)
+        timeline = client.timeline(str(id_processo), buscarDocumentos=True, buscarMovimentos=False)
+    except Exception as e:
+        logger.warning('[FLUXO_PZ][IDPJ] Falha ao consultar timeline; nenhuma ação: %s', e)
+        return None
+    if not isinstance(timeline, list) or not timeline:
+        logger.info('[FLUXO_PZ][IDPJ] Timeline indisponível/vazia; nenhuma ação')
+        return None
+
+    posteriores = _incidente_posteriores(timeline, str(id_ancora), contexto.get('data_extraida'))
+    if not posteriores:
+        logger.info('[FLUXO_PZ][IDPJ] Nenhum documento posterior à âncora; nenhuma ação')
+        return None
+    certidoes_com_rastreamento = set()
+    try:
+        from Fix.variaveis import obter_texto_documento
+        for item, _ in posteriores:
+            if 'certidao' not in _texto_item_timeline_incidente(item):
+                continue
+            doc_id = item.get('id') or item.get('idDocumento')
+            if not doc_id:
+                continue
+            texto_doc = obter_texto_documento(client, str(id_processo), str(doc_id)) or ''
+            from Fix.utils import normalizar_texto
+            if 'rastream' in normalizar_texto(texto_doc):
+                certidoes_com_rastreamento.add(str(doc_id))
+    except Exception as e:
+        logger.warning('[FLUXO_PZ][IDPJ] Não foi possível verificar conteúdo das certidões: %s', e)
+
+    cenario = _incidente_cenario(posteriores, certidoes_com_rastreamento)
+    if not cenario:
+        logger.info('[FLUXO_PZ][IDPJ] Nenhum dos cenários posteriores confirmado; nenhuma ação')
+        return None
+
+    # Reaproveita a classificação de anexos sigilosos do fluxo Argos.
+    try:
+        from Mandado.anexos_argos import _identificar_tipo_anexo
+        tem_anexo_sigilo = False
+        certidoes_pesquisa = [
+            item for item, _ in posteriores
+            if 'certidao' in _texto_item_timeline_incidente(item)
+            and 'pesquis' in _texto_item_timeline_incidente(item)
+        ]
+        for item in certidoes_pesquisa:
+            doc_id = item.get('id') or item.get('idDocumento')
+            if not doc_id:
+                continue
+            detalhes = client.documento_por_id(
+                str(id_processo), str(doc_id), incluirAssinatura=False, incluirAnexos=True
+            )
+            if not isinstance(detalhes, dict):
+                logger.warning('[FLUXO_PZ][IDPJ] Falha ao ler anexos da certidão %s; nenhuma ação', doc_id)
+                return None
+            for anexo in detalhes.get('anexos') or []:
+                texto_anexo = ' '.join(
+                    str(anexo.get(campo) or '')
+                    for campo in ('tipo', 'titulo', 'descricao', 'nomeDocumento', 'nomeArquivo')
+                ) if isinstance(anexo, dict) else str(anexo)
+                if _identificar_tipo_anexo(texto_anexo):
+                    tem_anexo_sigilo = True
+                    break
+            if tem_anexo_sigilo:
+                break
+    except Exception as e:
+        logger.warning('[FLUXO_PZ][IDPJ] Falha ao classificar anexos de pesquisa; nenhuma ação: %s', e)
+        return None
+
+    nome_ato = 'ato_termoS' if tem_anexo_sigilo else 'ato_meios'
+    acao = _lazy_import().get(nome_ato)
+    if not acao:
+        logger.error('[FLUXO_PZ][IDPJ] Ação %s indisponível; nenhuma ação', nome_ato)
+        return None
+    logger.info(
+        '[FLUXO_PZ][IDPJ] %s confirmado; anexo sigiloso em certidão de pesquisa=%s; ação=%s',
+        cenario, tem_anexo_sigilo, nome_ato,
+    )
+    return acao(driver)
+
+
 def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
     """Tabela do motor de regras do P2B: cada entrada é (trechos, ações)."""
     m = _lazy_import()
@@ -464,7 +620,7 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
 
         (['indefiro a instauração de'], (ato_meios,)),
 
-        (['Incidente de Desconsideração da Personalidade Jurídica instaurado em face'], (ato_meios,)),
+        (['Incidente de Desconsideração da Personalidade Jurídica instaurado em face'], (_ato_incidente_instaurado_em_face,)),
 
         (['instaurado em face'], (idpj,)),
 
@@ -509,7 +665,7 @@ def _casas_regra(texto_normalizado: str):
 
 
 @medir_tempo('_processar_regras_gerais')
-def _processar_regras_gerais(driver: Any, texto_normalizado: str, doc_idx: int = 0):
+def _processar_regras_gerais(driver: Any, texto_normalizado: str, doc_idx: int = 0, contexto_documento: Optional[dict] = None):
     """Helper: varre _definir_regras_processamento() em ordem — trechos -> ações."""
     m = _lazy_import()
     criar_gigs = m.get('criar_gigs')
@@ -543,7 +699,10 @@ def _processar_regras_gerais(driver: Any, texto_normalizado: str, doc_idx: int =
                             return checar_prox(driver, itens, doc_idx, regras, texto_normalizado)
                         except Exception:
                             return None
-                    res = action(driver)
+                    if action is _ato_incidente_instaurado_em_face:
+                        res = action(driver, contexto_documento)
+                    else:
+                        res = action(driver)
                 except Exception as e:
                     logger.error('[FLUXO_PZ] Erro ao executar action callable: %s', e)
                     res = None

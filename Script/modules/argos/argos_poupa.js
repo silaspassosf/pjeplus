@@ -1172,32 +1172,52 @@
         return mapa;
     }
 
-    function _extrairMatriculaECartorioTexto(texto) {
+    function _extrairMatriculaECartorioTexto(texto, opts) {
+        opts = opts || {};
+        const deNomeArquivo = !!opts.deNomeArquivo;
         const s = String(texto || '').replace(/\.pdf$/i, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!s) return { matriculas: [], cartorio: '' };
 
-        const reMat = /(?:matr[ií]cula|matr\.?|mat\.?)\s*(?:n[º°o\.]*)?\s*[:\-]?\s*(\d{1,3}(?:\.\s*\d{3})+|\d{2,10})/gi;
         const matSet = new Set();
         let m;
+        // 1) CNM (Código Nacional de Matrícula): 113746.2.0211590-94 -> 211590
+        const reCnm = /\b\d{6}\.\d\.(\d{7})-\d{2}\b/g;
+        while ((m = reCnm.exec(s)) !== null) {
+            const limpa = String(parseInt(m[1], 10));
+            if (limpa && limpa !== 'NaN' && limpa.length >= 2 && limpa.length <= 10) matSet.add(limpa);
+        }
+
+        // 2) Palavra-chave explícita: Matrícula / Matr. / Mat.
+        const reMat = /(?:matr[ií]cula|matr\.?|mat\.?)\s*(?:n[º°o\.]*)?\s*[:\-]?\s*(\d{1,3}(?:\.\s*\d{3})+|\d{2,10})/gi;
         while ((m = reMat.exec(s)) !== null) {
             const limpa = m[1].replace(/[\.\s]+/g, '');
             if (limpa.length >= 2 && limpa.length <= 10) matSet.add(limpa);
         }
 
+        // 3) Prefixo curto em nomes de arquivo ARISP: "m185519-1-20", "m94308_compressed-1-15", "M_201653_1-15"
+        if (deNomeArquivo && matSet.size === 0) {
+            const reShort = /(?:^|[\s\-])m[\s.\-]?(\d{3,10})(?=[\s\-]|$)/gi;
+            while ((m = reShort.exec(s)) !== null) {
+                const limpa = m[1];
+                if (limpa.length >= 3 && limpa.length <= 10) matSet.add(limpa);
+            }
+        }
+
         let cartorio = '';
-        const mCri = s.match(/(\d+\s*[º°oª]?\s*(?:oficial\s+de\s+)?(?:registro\s+de\s+im[oó]veis|c\.?\s*r\.?\s*i\.?|r\.?\s*i\.?)(?:\s+(?:de|da|do)\s+[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+){0,2})?)/i);
+        // Regex restrita para evitar falsos positivos (ex.: "3 ori", "7Ri", "1RI")
+        const mCri = s.match(/\b(\d{1,2}\s*(?:[º°ª]\s*)?(?:oficial\s+de\s+)?(?:registro\s+de\s+im[oó]veis|c\.?\s*r\.?\s*i\.?)|\d{1,2}\s*[º°ª]\s*r\.?\s*i\.?|\d{1,2}\s+r\.?\s*i\.?)\b(?:\s+(?:de|da|do)\s+[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+){0,2})?/i);
         if (mCri) {
-            cartorio = mCri[1]
+            cartorio = mCri[0]
                 .replace(/oficial\s+de\s+registro\s+de\s+im[oó]veis/i, 'CRI')
                 .replace(/registro\s+de\s+im[oó]veis/i, 'CRI')
                 .replace(/c\.?\s*r\.?\s*i\.?/i, 'CRI')
                 .replace(/\s+/g, ' ')
                 .trim();
         } else {
-            const mCart = s.match(/((?:\d+\s*[º°oª]?\s*)?cart[oó]rio\s+[A-Za-zÀ-ÿ0-9º°ª]+(?:\s+[A-Za-zÀ-ÿ0-9º°ª]+){0,3})/i);
+            const mCart = s.match(/\b((?:\d{1,2}\s*[º°ª]\s*)?cart[oó]rio\s+[A-Za-zÀ-ÿ0-9º°ª]+(?:\s+[A-Za-zÀ-ÿ0-9º°ª]+){0,3})/i);
             if (mCart) {
                 cartorio = mCart[1].replace(/\s+/g, ' ').trim();
-            } else {
+            } else if (deNomeArquivo) {
                 // Padrão comum de nome de arquivo ARISP: "matr 8.198 - Guarujá - proc ..." ou "matr 431.074 - 11SP - ..."
                 const mSeg = s.match(/(?:matr[ií]cula|matr\.?|mat\.?)\s*[\d\.\s]+\s*[-–]\s*([A-Za-zÀ-ÿ0-9º°ª\s]{2,24}?)(?:\s*[-–]\s*(?:proc|peeq|otim|$)|$)/i);
                 if (mSeg) cartorio = mSeg[1].replace(/\s+/g, ' ').trim();
@@ -1206,11 +1226,11 @@
         return { matriculas: Array.from(matSet), cartorio };
     }
 
-    function _extrairInfoArispDeFontes(fontesTexto) {
+    function _extrairInfoArispDeFontes(fontesTexto, opts) {
         const matSet = new Set();
         let cartorio = '';
         for (const f of (fontesTexto || [])) {
-            const info = _extrairMatriculaECartorioTexto(f);
+            const info = _extrairMatriculaECartorioTexto(f, opts);
             for (const mat of info.matriculas) matSet.add(mat);
             if (!cartorio && info.cartorio) cartorio = info.cartorio;
         }
@@ -1222,15 +1242,63 @@
         return partes.join(' - ');
     }
 
-    function _extrairTextoRapidoPdfBytes(u8) {
-        if (!u8 || !u8.length) return '';
+    function _getPdfJs() {
+        return (typeof pdfjsLib !== 'undefined' && pdfjsLib)
+            || window.pdfjsLib
+            || (typeof unsafeWindow !== 'undefined' && unsafeWindow.pdfjsLib)
+            || null;
+    }
+
+    // Extrai texto REAL (1ª, 2ª e última página) via pdf.js; nunca decodifica streams binários como latin1
+    async function _extrairTextoPdfSeguro(u8) {
+        if (!u8 || !u8.byteLength) return '';
+        const lib = _getPdfJs();
+        if (!lib || typeof lib.getDocument !== 'function') return '';
+        let doc = null;
         try {
-            const fatia = u8.subarray(0, Math.min(u8.length, 65536));
-            const dec = new TextDecoder('latin1').decode(fatia);
-            return dec.replace(/[^\x20-\x7E\xC0-\xFF]/g, ' ').replace(/\s+/g, ' ');
+            const task = lib.getDocument({ data: u8.slice(), disableWorker: true, verbosity: 0 });
+            doc = await task.promise;
+            const total = doc.numPages || 0;
+            if (!total) return '';
+            const idxs = Array.from(new Set([1, Math.min(2, total), total]));
+            const partes = [];
+            for (const pno of idxs) {
+                try {
+                    const page = await doc.getPage(pno);
+                    const tc = await page.getTextContent();
+                    const txt = (tc && Array.isArray(tc.items))
+                        ? tc.items.map(it => it && it.str ? it.str : '').join(' ')
+                        : '';
+                    if (txt.trim()) partes.push(txt);
+                } catch (ePag) { /* ignore */ }
+            }
+            return partes.join('\n').replace(/\s+/g, ' ').trim();
         } catch (e) {
             return '';
+        } finally {
+            if (doc && typeof doc.destroy === 'function') {
+                try { await doc.destroy(); } catch (e2) { /* ignore */ }
+            }
         }
+    }
+
+    function _chaveConteudoPdfArisp(textoPdf, numPaginas) {
+        const s = String(textoPdf || '');
+        if (!s) return '';
+        const mCnm = s.match(/\b(\d{6}\.\d\.\d{7}-\d{2})\b/);
+        if (mCnm) return 'CNM:' + mCnm[1] + '|' + (numPaginas || 0);
+        const mPed = s.match(/pedido\s*n[º°o\.]*\s*[:\-]?\s*(\d{1,3}(?:\.\d{3})+|\d{4,12})/i);
+        if (mPed) return 'PED:' + mPed[1].replace(/\D/g, '') + '|' + (numPaginas || 0);
+        return '';
+    }
+
+    function _ehNomeGenericoArisp(nomeArq) {
+        const norm = _normCmp(nomeArq || '');
+        if (!norm) return true;
+        if (norm.startsWith('CONSULTA NA ARISP')) return true;
+        const info = _extrairMatriculaECartorioTexto(nomeArq, { deNomeArquivo: true });
+        if (!info.matriculas.length && /^(?:ARISP|ANEXO|CERTIDAO|DOCUMENTO)\b/.test(norm)) return true;
+        return false;
     }
 
     function _montarNomeArquivoEmpresa(nomeEmpresa, tarefasOrdenadas) {
@@ -1284,7 +1352,10 @@
             onStatus('Gerando certidão/sumário no Argos...');
             const ids = Array.from(new Set(tarefasOrdenadas.map(t => t.idTarefa).filter(Boolean)));
             const certBytes = await obterCertidaoReaproveitamentoPdf(num, ids);
-            if (opts.enriquecerNomeArisp) fontesArisp.push(_extrairTextoRapidoPdfBytes(certBytes));
+            if (opts.enriquecerNomeArisp) {
+                const txtCert = await _extrairTextoPdfSeguro(certBytes);
+                if (txtCert) fontesArisp.push(txtCert);
+            }
             const pagsCert = await _anexarBytesAoPdf(pdfFinal, certBytes, 'application/pdf', 'Certidao_Reaproveitamento.pdf', avisos);
             totalPaginas += pagsCert;
             resumoArquivos.push({ origem: 'certidao', nome: 'Certidão de Reaproveitamento', paginas: pagsCert, bytes: certBytes.byteLength });
@@ -1293,7 +1364,7 @@
         const filaDownloads = [];
         if (Array.isArray(opts.arquivosPreFiltrados)) {
             for (const item of opts.arquivosPreFiltrados) {
-                if (opts.enriquecerNomeArisp && item.arquivo && item.arquivo.nomeArquivo) {
+                if (opts.enriquecerNomeArisp && item.arquivo && item.arquivo.nomeArquivo && !_ehNomeGenericoArisp(item.arquivo.nomeArquivo)) {
                     fontesArisp.push(item.arquivo.nomeArquivo);
                 }
                 filaDownloads.push(item);
@@ -1306,7 +1377,9 @@
                 try {
                     const arqs = await listarArquivosTarefa(t.idTarefa, t.idResultado);
                     for (const arq of arqs) {
-                        if (opts.enriquecerNomeArisp && arq && arq.nomeArquivo) fontesArisp.push(arq.nomeArquivo);
+                        if (opts.enriquecerNomeArisp && arq && arq.nomeArquivo && !_ehNomeGenericoArisp(arq.nomeArquivo)) {
+                            fontesArisp.push(arq.nomeArquivo);
+                        }
                         filaDownloads.push({ tarefa: t, arquivo: arq });
                     }
                 } catch (err) {
@@ -1315,8 +1388,10 @@
             }
         }
 
-        const maxLadoLote = filaDownloads.length >= 10 ? 1020 : IMG_MAX_LADO_PX;
+        const maxLadoLote = filaDownloads.length >= 4 ? 1020 : IMG_MAX_LADO_PX;
         const hashesInseridos = new Set();
+        const chavesConteudoInseridas = new Set();
+        const matsJaEmitidas = opts.matriculasEmitidasGlobal instanceof Set ? opts.matriculasEmitidasGlobal : null;
 
         for (let i = 0; i < filaDownloads.length; i++) {
             const { tarefa, arquivo } = filaDownloads[i];
@@ -1326,12 +1401,37 @@
                 const { bytes, contentType } = await baixarArquivoAnexo(tarefa.idTarefa, tarefa.idResultado, arquivo.id);
                 const sigHash = _hashBytesRapido(bytes);
                 if (hashesInseridos.has(sigHash)) {
-                    avisos.push('Anexo duplicado ignorado: ' + nomeArq);
+                    avisos.push('Anexo duplicado ignorado (bytes): ' + nomeArq);
                     continue;
                 }
                 hashesInseridos.add(sigHash);
-                if (opts.enriquecerNomeArisp && (_isPdfBytes(bytes) || contentType.includes('pdf'))) {
-                    fontesArisp.push(_extrairTextoRapidoPdfBytes(bytes));
+
+                const ehPdf = _isPdfBytes(bytes) || contentType.includes('pdf');
+                if (ehPdf && (opts.dedupConteudoArisp || opts.enriquecerNomeArisp)) {
+                    const txtPdf = await _extrairTextoPdfSeguro(bytes);
+                    if (txtPdf) {
+                        if (opts.enriquecerNomeArisp) fontesArisp.push(txtPdf);
+                        if (opts.dedupConteudoArisp) {
+                            let numPagsPdf = 0;
+                            try {
+                                const tmpDoc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+                                numPagsPdf = tmpDoc.getPageCount();
+                            } catch (ePg) { /* ignore */ }
+                            const chaveCont = _chaveConteudoPdfArisp(txtPdf, numPagsPdf);
+                            if (chaveCont && chavesConteudoInseridas.has(chaveCont)) {
+                                avisos.push('Anexo duplicado ignorado (' + chaveCont + '): ' + nomeArq);
+                                continue;
+                            }
+                            if (chaveCont) chavesConteudoInseridas.add(chaveCont);
+                            if (matsJaEmitidas) {
+                                const infoTxt = _extrairMatriculaECartorioTexto(txtPdf, { deNomeArquivo: false });
+                                if (infoTxt.matriculas.length === 1 && matsJaEmitidas.has(infoTxt.matriculas[0])) {
+                                    avisos.push('Matrícula já emitida ignorada (Mat ' + infoTxt.matriculas[0] + '): ' + nomeArq);
+                                    continue;
+                                }
+                            }
+                        }
+                    }
                 }
                 const pags = await _anexarBytesAoPdf(pdfFinal, bytes, contentType, nomeArq, avisos, maxLadoLote);
                 totalPaginas += pags;

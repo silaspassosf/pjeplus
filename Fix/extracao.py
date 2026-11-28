@@ -1293,7 +1293,7 @@ def _parse_gigs_string(string):
     return {'dias_uteis': None, 'responsavel': None, 'observacao': string.strip()}
 
 
-def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeout=10, log=True):
+def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeout=10, log=True, dias_corridos=False):
     """Cria atividade GIGS na aba /detalhe - VERSÃO OTIMIZADA baseada em a.py"""
     if isinstance(dias_uteis, str) and responsavel is None and observacao is None:
         parsed = _parse_gigs_string(dias_uteis)
@@ -1413,6 +1413,56 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
 
             logger.error('[GIGS] Prazo %s nao confirmado no formulario apos 2 tentativas — abortando sem salvar', dias_str)
             return False
+
+        # Etapa 1.5: se solicitado, trocar radio de "Dias úteis" para "Dias corridos" (#diasCorridos-input / value="C")
+        if dias_corridos:
+            _JS_MARCAR_DIAS_CORRIDOS = """() => {
+                var inp = document.querySelector('#diasCorridos-input, input[type="radio"][value="C"]');
+                if (!inp) return { encontrado: false, marcado: false };
+                if (inp.checked) return { encontrado: true, marcado: true };
+                var matRadio = inp.closest('mat-radio-button');
+                var lbl = (matRadio && matRadio.querySelector('label.mat-radio-label'))
+                    || document.querySelector('label[for="diasCorridos-input"]')
+                    || matRadio
+                    || inp;
+                try { lbl.click(); } catch (e) {}
+                if (!inp.checked) {
+                    try { inp.click(); } catch (e) {}
+                }
+                return {
+                    encontrado: true,
+                    marcado: Boolean(inp.checked || (matRadio && matRadio.classList.contains('mat-radio-checked')))
+                };
+            }"""
+            _JS_CORRIDOS_ATIVO = """() => {
+                var inp = document.querySelector('#diasCorridos-input, input[type="radio"][value="C"]');
+                if (!inp) return false;
+                var matRadio = inp.closest('mat-radio-button');
+                return Boolean(inp.checked || (matRadio && matRadio.classList.contains('mat-radio-checked')));
+            }"""
+            corridos_ok = False
+            for tentativa_radio in (1, 2):
+                try:
+                    if hasattr(driver, 'page') and driver.page:
+                        res_r = driver.page.evaluate(_JS_MARCAR_DIAS_CORRIDOS) or {}
+                        if res_r.get('marcado'):
+                            corridos_ok = True
+                            break
+                        loc_lbl = driver.page.locator('label[for="diasCorridos-input"], mat-radio-button#diasCorridos label.mat-radio-label, #diasCorridos-input').first
+                        loc_lbl.click(timeout=2000, force=True)
+                    else:
+                        espera._executar_script(driver, f"({_JS_MARCAR_DIAS_CORRIDOS})()")
+                except Exception as e_radio:
+                    logger.debug('[GIGS] Tentativa %d de marcar dias corridos falhou: %s', tentativa_radio, e_radio)
+                espera.assentar(driver, 0.3, motivo='selecao de radio Dias corridos no GIGS')
+                if espera.ate_js(driver, f"({_JS_CORRIDOS_ATIVO})()", teto=2):
+                    corridos_ok = True
+                    break
+            if not corridos_ok:
+                logger.error('[GIGS] Radio "Dias corridos" (#diasCorridos-input) nao confirmado — abortando sem salvar')
+                return False
+            if log:
+                logger.info('[GIGS] Modo "Dias corridos" selecionado')
 
         # Etapa 2: prazo (isolado e obrigatório quando solicitado)
         if dias_str:

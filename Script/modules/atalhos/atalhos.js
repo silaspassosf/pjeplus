@@ -1391,6 +1391,7 @@ window.injetarBotaoLivresPainelGlobal = injetarBotaoLivresPainelGlobal;
     const PJE = 'https://pje.trt2.jus.br';
     const API = PJE + '/pje-consulta-api/api/processos/dadosbasicos/';
     const GUIA = 'pjeplus_abrir_processo_direto';
+    const VERSAO = '2.7.0';
     const RE_COMPLETO = /\d{7}-?\d{2}\.?\d{4}\.?\d{1}\.?\d{2}\.?\d{4}/;
 
     // ── nº completo (NNNNNNN-DD.AAAA.J.TR.OOOO) a partir de texto solto ──
@@ -1533,7 +1534,7 @@ window.injetarBotaoLivresPainelGlobal = injetarBotaoLivresPainelGlobal;
             }
 
             return {
-                ok: true, numero: alvo, id: achado.id, grau: achado.grau,
+                ok: true, numero: alvo, id: achado.id, grau: achado.grau, versao: VERSAO,
                 rota: rotas[0], rotas: rotas, urls: urls, url: urls[0], aba: !!aba,
                 focou: opts.focar !== false, gigs: { via: 'aba PJe', marcador: !!opts.limparGigsTeimosinha }
             };
@@ -1544,6 +1545,8 @@ window.injetarBotaoLivresPainelGlobal = injetarBotaoLivresPainelGlobal;
 
     window.Atalhos = window.Atalhos || {};
     window.Atalhos.abrir_processo_direto = abrir_processo_direto;
+    window.Atalhos.abrir_processo_direto_versao = VERSAO;
     window.abrir_processo_direto = abrir_processo_direto;
+    console.log('[abrir_processo_direto] módulo v' + VERSAO + ' carregado em ' + location.host);
 })();
 // ═══ ABRIR PROCESSO DIRETO FIM ═══

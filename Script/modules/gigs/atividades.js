@@ -26,6 +26,7 @@
     if (window.PjeGigsAtividades) return;
 
     var API = '/pje-gigs-api/api';
+    var VERSAO = '1.2.0';
     var PJE_PADRAO = 'https://pje.trt2.jus.br';
     var PARAM = 'pjetools';
     var VALOR_PARAM = 'gigs-teimosinha';
@@ -248,5 +249,6 @@
         });
     }
 
-    console.log('[PjeGigsAtividades] módulo carregado em', window.location.host + window.location.pathname);
+    console.log('[PjeGigsAtividades] módulo v' + VERSAO + ' carregado em',
+        window.location.host + window.location.pathname);
 })();

@@ -26,6 +26,7 @@
 
     var ID_BOTAO = 'pjetools-sisb-abrir-minutas-btn';
     var TEXTO_PADRAO = 'Abrir minutas';
+    var VERSAO = '1.6.0';
     var RE_CNJ = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/;
 
     var ultimosItens = [];       // array content[] retornado por GET /v2/ordem/minuta
@@ -493,7 +494,19 @@
             existente.remove();
         }
 
-        var btn = montarBotao();
+        var btn;
+        try {
+            btn = montarBotao();
+        } catch (e) {
+            console.warn('[SisbAbrirMinutas] clone do "Consultar" falhou, usando botão simples:', e);
+            btn = document.createElement('button');
+            btn.id = ID_BOTAO;
+            btn.type = 'button';
+            btn.className = 'mat-fab mat-button-base';
+            btn.innerHTML = '<span class="mat-button-wrapper"></span>';
+            definirRotulo(btn, TEXTO_PADRAO);
+            btn.addEventListener('click', function () { aoClicar(btn); });
+        }
         if (destino) {
             destino.appendChild(btn); // entra depois de "Consultar", dentro de .uikit-actions
             btn.setAttribute('data-pjetools-no-divisor', '1');
@@ -535,6 +548,7 @@
     }
 
     window.SisbAbrirMinutas = {
+        versao: VERSAO,
         injetarBotao: injetarBotao,
         resetarAbertos: function () {
             idsAbertos.clear();
@@ -543,6 +557,6 @@
         },
     };
 
-    console.log('[SisbAbrirMinutas] módulo carregado em', location.host + location.pathname,
-        '| api?', typeof window.SisbAbrirMinutas);
+    console.log('[SisbAbrirMinutas] módulo v' + VERSAO + ' carregado em',
+        location.host + location.pathname, '| api?', typeof window.SisbAbrirMinutas);
 })();

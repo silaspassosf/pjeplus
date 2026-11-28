@@ -4,8 +4,9 @@
 // SISBAJUD — abrir_minutas.js (botão "Abrir minutas")
 // Onde: https://sisbajud.cnj.jus.br/minuta (e sisbajud.pdpj.jus.br/minuta)
 // Posição: canto superior direito
-// Condição: radio "Minutas a protocolizar destinadas ao juiz" selecionado
-//           + tabela de minutas povoada
+// Injeção: basta estar em /minuta (sem exigir radio/tabela); o clique em
+//          "Consultar" também serve de gatilho e o clique no botão avisa o
+//          que falta (radio do juiz marcado / tabela carregada)
 // O que faz, a cada clique:
 //   1. Ignora processos/minutas já abertos e pega o próximo processo na ordem da tabela
 //   2. Reúne até 2 minutas desse mesmo processo na tabela
@@ -68,10 +69,6 @@
 
     function linhasTabela() {
         return Array.from(document.querySelectorAll('table.mat-table tbody tr.mat-row'));
-    }
-
-    function paginaPronta() {
-        return hostSisbajud() && naRotaMinuta() && radioJuizSelecionado() && linhasTabela().length > 0;
     }
 
     function toast(msg, cor) {
@@ -349,7 +346,11 @@
         try {
             var rows = linhasTabela();
             if (!rows.length) {
-                toast('Nenhuma minuta na tabela.', '#ef6c00');
+                console.log('[SisbAbrirMinutas] sem linhas | radioJuiz=' + radioJuizSelecionado());
+                toast(radioJuizSelecionado()
+                    ? 'Tabela vazia — clique em "Consultar" e aguarde carregar.'
+                    : 'Marque "Minutas a protocolizar destinadas ao juiz" e clique em "Consultar".',
+                    '#ef6c00');
                 return;
             }
 
@@ -425,25 +426,20 @@
     }
 
     // ── Injeção do botão (canto superior direito) ────────────────────
-    var ultimoMotivo = '';
+    // Não depende de radio/tabela: basta estar em /minuta. O clique é que
+    // valida o estado e avisa o que falta (radio do juiz, tabela vazia).
     function injetarBotao() {
-        if (!document.body) return;
+        if (!hostSisbajud() || !document.body) return;
         var existente = document.getElementById(ID_BOTAO);
 
-        if (!paginaPronta()) {
-            var motivo = 'host=' + hostSisbajud() + ' rota=' + naRotaMinuta() +
-                ' radioJuiz=' + radioJuizSelecionado() + ' linhas=' + linhasTabela().length;
-            if (motivo !== ultimoMotivo) {
-                ultimoMotivo = motivo;
-                console.log('[SisbAbrirMinutas] botão não injetado — aguardando:', motivo);
-            }
+        if (!naRotaMinuta()) {
             if (existente) existente.remove();
             return;
         }
-
-        ultimoMotivo = 'pronto';
-        reaplicarDestaques();
-        if (existente) return;
+        if (existente) {
+            reaplicarDestaques();
+            return;
+        }
 
         var btn = document.createElement('button');
         btn.id = ID_BOTAO;
@@ -455,6 +451,9 @@
             'font:bold 14px Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.3);';
         btn.addEventListener('click', function () { aoClicar(btn); });
         document.body.appendChild(btn);
+        console.log('[SisbAbrirMinutas] botão injetado | radioJuiz=' + radioJuizSelecionado() +
+            ' linhas=' + linhasTabela().length);
+        reaplicarDestaques();
     }
 
     // Escuta cliques em "Consultar" para reagir rápido após a tabela carregar
@@ -475,6 +474,9 @@
     if (hostSisbajud()) {
         instalarInterceptador();
         observarCliqueConsultar();
+        // injeta cedo em /minuta (o orquestrador também chama a cada 1,5 s)
+        setTimeout(injetarBotao, 600);
+        setTimeout(injetarBotao, 1800);
     }
 
     window.SisbAbrirMinutas = {

@@ -88,6 +88,11 @@
         if (window.SisbProtocolos && typeof window.SisbProtocolos.injetarBotao === 'function') {
             window.SisbProtocolos.injetarBotao();
         }
+
+        // 5b. Listagem de Minutas (/minuta) — botão "Abrir minutas" (superior direito)
+        if (window.SisbAbrirMinutas && typeof window.SisbAbrirMinutas.injetarBotao === 'function') {
+            window.SisbAbrirMinutas.injetarBotao();
+        }
     }
 
     // Loops de injeção e observação

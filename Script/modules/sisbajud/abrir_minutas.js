@@ -57,7 +57,13 @@
     }
 
     function radioJuizSelecionado() {
-        return !!document.querySelector('mat-radio-button.mat-radio-juiz.mat-radio-checked');
+        if (document.querySelector('mat-radio-button.mat-radio-juiz.mat-radio-checked')) return true;
+        // fallback: qualquer radio marcado cujo rótulo fale de "juiz"
+        var marcados = document.querySelectorAll('mat-radio-button.mat-radio-checked');
+        for (var i = 0; i < marcados.length; i++) {
+            if (norm(marcados[i].textContent).toLowerCase().indexOf('juiz') > -1) return true;
+        }
+        return false;
     }
 
     function linhasTabela() {
@@ -419,15 +425,23 @@
     }
 
     // ── Injeção do botão (canto superior direito) ────────────────────
+    var ultimoMotivo = '';
     function injetarBotao() {
         if (!document.body) return;
         var existente = document.getElementById(ID_BOTAO);
 
         if (!paginaPronta()) {
+            var motivo = 'host=' + hostSisbajud() + ' rota=' + naRotaMinuta() +
+                ' radioJuiz=' + radioJuizSelecionado() + ' linhas=' + linhasTabela().length;
+            if (motivo !== ultimoMotivo) {
+                ultimoMotivo = motivo;
+                console.log('[SisbAbrirMinutas] botão não injetado — aguardando:', motivo);
+            }
             if (existente) existente.remove();
             return;
         }
 
+        ultimoMotivo = 'pronto';
         reaplicarDestaques();
         if (existente) return;
 
@@ -462,6 +476,9 @@
         instalarInterceptador();
         observarCliqueConsultar();
     }
+
+    console.log('[SisbAbrirMinutas] módulo carregado em', location.host + location.pathname,
+        '| api?', typeof window.SisbAbrirMinutas);
 
     window.SisbAbrirMinutas = {
         injetarBotao: injetarBotao,

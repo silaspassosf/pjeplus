@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════
 // SISBAJUD — abrir_minutas.js (botão "Abrir minutas")
 // Onde: https://sisbajud.cnj.jus.br/minuta (e sisbajud.pdpj.jus.br/minuta)
-// Posição: canto superior direito
+// Posição: dentro do divisor .uikit-actions, ao lado do botão "Consultar"
 // Injeção: basta estar em /minuta (sem exigir radio/tabela); o clique em
 //          "Consultar" também serve de gatilho e o clique no botão avisa o
 //          que falta (radio do juiz marcado / tabela carregada)
@@ -357,7 +357,7 @@
             }
 
             if (!ultimosItens.length) {
-                btn.textContent = 'Buscando IDs...';
+                definirRotulo(btn, 'Buscando IDs...');
                 await buscarItensViaApiFallback();
             }
 
@@ -392,7 +392,7 @@
 
             // Abre primeiro a mais abaixo e depois a de cima (ordem reversa do grupo)
             var ordemAbertura = grupo.slice().reverse();
-            btn.textContent = 'Abrindo (' + ordemAbertura.length + ')...';
+            definirRotulo(btn, 'Abrindo (' + ordemAbertura.length + ')...');
 
             for (var i = 0; i < ordemAbertura.length; i++) {
                 var item = ordemAbertura[i];
@@ -421,15 +421,60 @@
             console.error('[SisbAbrirMinutas] erro:', e);
             toast('Erro ao abrir minutas: ' + ((e && e.message) || e), '#c62828');
         } finally {
-            btn.textContent = TEXTO_PADRAO;
+            definirRotulo(btn, TEXTO_PADRAO);
             btn.disabled = false;
             executando = false;
         }
     }
 
-    // ── Injeção do botão (canto superior direito) ────────────────────
+    // ── Injeção do botão (no divisor de ações, ao lado de "Consultar") ──
     // Não depende de radio/tabela: basta estar em /minuta. O clique é que
     // valida o estado e avisa o que falta (radio do juiz, tabela vazia).
+    function botaoConsultar() {
+        var botoes = Array.prototype.slice.call(document.querySelectorAll('button.mat-fab'));
+        for (var i = 0; i < botoes.length; i++) {
+            if (norm(botoes[i].textContent).toLowerCase().indexOf('consultar') > -1) return botoes[i];
+        }
+        return null;
+    }
+
+    // .uikit-actions é o divisor que contém Nova / Protocolar / Consultar
+    function containerAcoes() {
+        var consultar = botaoConsultar();
+        if (consultar && consultar.parentNode) return consultar.parentNode;
+        return document.querySelector('div.uikit-actions') || null;
+    }
+
+    function definirRotulo(btn, texto) {
+        var wrap = btn.querySelector('.mat-button-wrapper');
+        if (!wrap) { btn.textContent = texto; return; }
+        Array.prototype.slice.call(wrap.childNodes).forEach(function (n) {
+            if (n.nodeType === 3) wrap.removeChild(n);
+        });
+        wrap.appendChild(document.createTextNode(' ' + texto));
+    }
+
+    // Clona o "Consultar" para herdar classes/estrutura (mat-fab, ripple, ícone)
+    function montarBotao() {
+        var modelo = botaoConsultar();
+        var btn = modelo ? modelo.cloneNode(true) : document.createElement('button');
+        if (!modelo) {
+            btn.type = 'button';
+            btn.className = 'mat-fab mat-button-base';
+            btn.innerHTML = '<span class="mat-button-wrapper"></span>';
+        }
+        btn.id = ID_BOTAO;
+        btn.removeAttribute('onclick');
+        btn.title = 'Abre em novas abas (de baixo para cima, até 2) as minutas do próximo processo + aba do PJe';
+        var icone = btn.querySelector('mat-icon');
+        if (icone) {
+            icone.className = icone.className.replace(/\bfa-[a-z0-9-]+\b/, 'fa-folder-open');
+        }
+        definirRotulo(btn, TEXTO_PADRAO);
+        btn.addEventListener('click', function () { aoClicar(btn); });
+        return btn;
+    }
+
     function injetarBotao() {
         if (!hostSisbajud() || !document.body) return;
         var existente = document.getElementById(ID_BOTAO);
@@ -438,23 +483,29 @@
             if (existente) existente.remove();
             return;
         }
+
+        var destino = containerAcoes();
         if (existente) {
-            reaplicarDestaques();
-            return;
+            if (destino && existente.parentNode === destino) { reaplicarDestaques(); return; }
+            if (!destino && existente.getAttribute('data-pjetools-fixo') === '1') { reaplicarDestaques(); return; }
+            existente.remove();
         }
 
-        var btn = document.createElement('button');
-        btn.id = ID_BOTAO;
-        btn.type = 'button';
-        btn.textContent = TEXTO_PADRAO;
-        btn.title = 'Abre em novas abas (de baixo para cima, até 2) as minutas do próximo processo + aba do PJe';
-        btn.style.cssText = 'position:fixed;top:14px;right:20px;z-index:999999;' +
-            'padding:10px 18px;border:none;border-radius:8px;background:#2e7d32;color:#fff;' +
-            'font:bold 14px Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.3);';
-        btn.addEventListener('click', function () { aoClicar(btn); });
-        document.body.appendChild(btn);
-        console.log('[SisbAbrirMinutas] botão injetado | radioJuiz=' + radioJuizSelecionado() +
-            ' linhas=' + linhasTabela().length);
+        var btn = montarBotao();
+        if (destino) {
+            destino.appendChild(btn); // entra depois de "Consultar", dentro de .uikit-actions
+            btn.setAttribute('data-pjetools-no-divisor', '1');
+        } else {
+            // reserva: só se o divisor ainda não existir no DOM
+            btn.setAttribute('data-pjetools-fixo', '1');
+            btn.style.cssText = 'position:fixed;top:14px;right:20px;z-index:999999;' +
+                'padding:10px 18px;border:none;border-radius:8px;background:#2e7d32;color:#fff;' +
+                'font:bold 14px Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.3);';
+            document.body.appendChild(btn);
+        }
+        console.log('[SisbAbrirMinutas] botão injetado ' +
+            (destino ? 'no divisor de ações' : 'flutuante (divisor ausente)') +
+            ' | radioJuiz=' + radioJuizSelecionado() + ' linhas=' + linhasTabela().length);
         reaplicarDestaques();
     }
 

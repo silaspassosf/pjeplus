@@ -18,8 +18,10 @@
 
     var ID_BOTAO = 'pjetools-sisb-protocolos';
     var ID_BOTAO_PDF = 'pjetools-sisb-protocolos-pdf';
+    var ID_BOTAO_ORDEM = 'pjetools-sisb-ordem-protocolos';
     var TEXTO_PADRAO = 'Copiar protocolo';
     var TEXTO_PDF_PADRAO = 'Unir PDFs';
+    var TEXTO_ORDEM_PADRAO = 'Baixar protocolos';
     var PAGE_WIN = (typeof unsafeWindow !== 'undefined' && unsafeWindow) || window;
 
     function hostSisbajud() {
@@ -30,6 +32,11 @@
     function naRotaMinuta() {
         var p = window.location.pathname || '';
         return p === '/minuta' || p === '/minuta/';
+    }
+
+    function naRotaOrdemJudicial() {
+        var p = window.location.pathname || '';
+        return p === '/ordem-judicial' || p === '/ordem-judicial/';
     }
 
     // ── Clipboard: GM_setClipboard → navigator.clipboard → textarea ──
@@ -479,43 +486,274 @@
         }
     }
 
+    // ── Baixar protocolos "Não enviada" em /ordem-judicial ───────────
+    function normalizarTexto(s) {
+        return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    }
+
+    function esperarCondicao(fn, timeoutMs, intervaloMs) {
+        return new Promise(function (resolve) {
+            var inicio = Date.now();
+            var teto = timeoutMs || 10000;
+            var passo = intervaloMs || 150;
+            (function tick() {
+                try {
+                    var r = fn();
+                    if (r) return resolve(r);
+                } catch (e) { }
+                if (Date.now() - inicio >= teto) return resolve(null);
+                setTimeout(tick, passo);
+            })();
+        });
+    }
+
+    function extrairChaveLinhaOrdem(tr) {
+        var celProto = tr.querySelector('[data-label*="protocolo"], [data-label*="Protocolo"], td.cdk-column-protocolo');
+        var tProto = celProto ? (celProto.textContent || '').replace(/\D+/g, '') : '';
+        if (tProto) return tProto;
+        var m = (tr.textContent || '').match(/\b20\d{12,16}\b/);
+        if (m) return m[0];
+        return normalizarTexto(tr.textContent || '').slice(0, 80);
+    }
+
+    function listarLinhasNaoEnviadas() {
+        var linhas = document.querySelectorAll('table.mat-table tbody tr.mat-row, table.mat-table tbody tr[mat-row]');
+        var res = [];
+        for (var i = 0; i < linhas.length; i++) {
+            var tr = linhas[i];
+            var celSit = tr.querySelector('[data-label="descricaoSituacao:"], [data-label*="Situacao"], td.cdk-column-descricaoSituacao');
+            var sitTxt = normalizarTexto(celSit ? celSit.textContent : tr.textContent);
+            if (sitTxt.indexOf('nao enviada') === -1) continue;
+            res.push({ tr: tr, chave: extrairChaveLinhaOrdem(tr) });
+        }
+        return res;
+    }
+
+    async function abrirDetalharLinha(tr) {
+        try { tr.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) { }
+        await esperar(150);
+
+        var btnMenu = tr.querySelector('button.mat-menu-trigger.mat-icon-button, button.mat-menu-trigger');
+        if (!btnMenu) return false;
+        btnMenu.click();
+
+        var itemDetalhar = await esperarCondicao(function () {
+            var itens = document.querySelectorAll('button[role="menuitem"].mat-menu-item, button[role="menuitem"]');
+            for (var i = 0; i < itens.length; i++) {
+                if (visivel(itens[i]) && normalizarTexto(txt(itens[i])).indexOf('detalhar') > -1) {
+                    return itens[i];
+                }
+            }
+            return null;
+        }, 4000, 100);
+
+        if (!itemDetalhar) return false;
+        itemDetalhar.click();
+
+        var entrou = await esperarCondicao(function () {
+            return (window.location.pathname || '').indexOf('/detalhar') > -1;
+        }, 10000, 150);
+
+        return !!entrou;
+    }
+
+    async function voltarParaOrdemJudicial() {
+        var btnVoltar = document.querySelector(
+            'button.mat-icon-button .fa-chevron-left, button[aria-label="Voltar"], button[title="Voltar"]'
+        );
+        if (btnVoltar) {
+            var alvo = btnVoltar.closest('button') || btnVoltar;
+            alvo.click();
+        } else {
+            PAGE_WIN.history.back();
+        }
+
+        await esperarCondicao(function () {
+            return naRotaOrdemJudicial()
+                && document.querySelectorAll('table.mat-table tbody tr.mat-row, table.mat-table tbody tr[mat-row]').length > 0;
+        }, 12000, 200);
+        await esperar(300);
+    }
+
+    async function unirEBaixarPdfs(lib, capturados, falhas, btn, textoPadrao, prefixoNome) {
+        if (!capturados.length) {
+            avisar(btn, 'Nenhum PDF capturado', 2500, textoPadrao);
+            return;
+        }
+        btn.textContent = 'Unindo ' + capturados.length + ' PDFs...';
+        var pdfFinal = await lib.PDFDocument.create();
+        for (var j = 0; j < capturados.length; j++) {
+            try {
+                var src = await lib.PDFDocument.load(capturados[j].bytes, { ignoreEncryption: true });
+                var paginas = await pdfFinal.copyPages(src, src.getPageIndices());
+                for (var p = 0; p < paginas.length; p++) {
+                    pdfFinal.addPage(paginas[p]);
+                }
+            } catch (eLoad) {
+                falhas++;
+                console.warn('[SisbProtocolos] Falha ao anexar PDF', capturados[j].protocolo, eLoad);
+            }
+        }
+        var bytesFinais = await pdfFinal.save();
+        var primeiro = capturados[0].protocolo;
+        var ultimo = capturados[capturados.length - 1].protocolo;
+        var nome = capturados.length === 1
+            ? ('recibo_' + primeiro + '.pdf')
+            : ((prefixoNome || 'recibos') + '_' + primeiro + '_a_' + ultimo + '_' + capturados.length + 'x.pdf');
+        baixarPdfUnificado(bytesFinais, nome);
+        avisar(
+            btn,
+            falhas ? ('Unido (' + capturados.length + ', ' + falhas + ' erro)') : ('PDF único (' + capturados.length + ')!'),
+            3500,
+            textoPadrao
+        );
+    }
+
+    var loteOrdemEmAndamento = false;
+
+    async function aoClicarBaixarProtocolosOrdem(btn) {
+        if (loteOrdemEmAndamento) return;
+
+        var lib = obterPdfLib();
+        if (!lib) return avisar(btn, 'PDFLib indisponível', 2500, TEXTO_ORDEM_PADRAO);
+
+        var iniciais = listarLinhasNaoEnviadas();
+        if (!iniciais.length) return avisar(btn, 'Nenhuma "Não enviada"', 2500, TEXTO_ORDEM_PADRAO);
+
+        instalarHooksDownload();
+        loteOrdemEmAndamento = true;
+        modoCaptura = true;
+        btn.disabled = true;
+
+        var totalAlvo = iniciais.length;
+        var processados = new Set();
+        var capturados = [];
+        var falhas = 0;
+        var contador = 0;
+
+        try {
+            while (contador < totalAlvo + 5) {
+                var disponiveis = listarLinhasNaoEnviadas();
+                var proximo = null;
+                for (var i = 0; i < disponiveis.length; i++) {
+                    if (!processados.has(disponiveis[i].chave)) {
+                        proximo = disponiveis[i];
+                        break;
+                    }
+                }
+                if (!proximo) break;
+
+                processados.add(proximo.chave);
+                contador++;
+                btn.textContent = 'Baixando ' + contador + '/' + totalAlvo + '...';
+
+                var abriu = await abrirDetalharLinha(proximo.tr);
+                if (!abriu) {
+                    falhas++;
+                    console.warn('[SisbProtocolos] Não abriu Detalhar para:', proximo.chave);
+                    continue;
+                }
+
+                var btnRecibo = await esperarCondicao(function () {
+                    var btns = document.querySelectorAll('button.mat-fab, button');
+                    for (var k = 0; k < btns.length; k++) {
+                        if (visivel(btns[k]) && normalizarTexto(txt(btns[k])).indexOf('gerar recibo') > -1) {
+                            return btns[k];
+                        }
+                    }
+                    return null;
+                }, 10000, 200);
+
+                if (btnRecibo) {
+                    await esperar(350);
+                    var promessa = aguardarProximoPdf(10000);
+                    btnRecibo.click();
+                    var cap = await promessa;
+                    var bytes = await resolverBytes(cap);
+                    if (bytes && bytes.byteLength > 100) {
+                        capturados.push({ protocolo: proximo.chave, bytes: bytes });
+                    } else {
+                        falhas++;
+                        console.warn('[SisbProtocolos] Recibo não capturado em /detalhar:', proximo.chave);
+                    }
+                } else {
+                    falhas++;
+                    console.warn('[SisbProtocolos] Botão Gerar Recibo não encontrado:', proximo.chave);
+                }
+
+                await voltarParaOrdemJudicial();
+            }
+
+            await unirEBaixarPdfs(lib, capturados, falhas, btn, TEXTO_ORDEM_PADRAO, 'recibos_nao_enviadas');
+        } catch (e) {
+            console.error('[SisbProtocolos] Erro ao baixar protocolos /ordem-judicial:', e);
+            avisar(btn, 'Erro ao baixar PDFs', 2500, TEXTO_ORDEM_PADRAO);
+        } finally {
+            modoCaptura = false;
+            resolverCaptura = null;
+            loteOrdemEmAndamento = false;
+            btn.disabled = false;
+        }
+    }
+
     // ── Injeção dos botões (inferior direito) ────────────────────────
     function injetarBotao() {
         if (!hostSisbajud() || !document.body) return;
 
         var existente = document.getElementById(ID_BOTAO);
         var existentePdf = document.getElementById(ID_BOTAO_PDF);
-        if (!naRotaMinuta()) {
-            if (existente) existente.remove();
-            if (existentePdf) existentePdf.remove();
+        var existenteOrdem = document.getElementById(ID_BOTAO_ORDEM);
+
+        if (naRotaMinuta()) {
+            instalarHooksDownload();
+            if (existenteOrdem && !loteOrdemEmAndamento) existenteOrdem.remove();
+
+            if (!existente) {
+                var btn = document.createElement('button');
+                btn.id = ID_BOTAO;
+                btn.type = 'button';
+                btn.textContent = TEXTO_PADRAO;
+                btn.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;' +
+                    'padding:10px 18px;border:none;border-radius:8px;background:#1976d2;color:#fff;' +
+                    'font:bold 14px Arial,sans-serif;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);';
+                btn.addEventListener('click', function () { aoClicar(btn); });
+                document.body.appendChild(btn);
+            }
+
+            if (!existentePdf) {
+                var btnPdf = document.createElement('button');
+                btnPdf.id = ID_BOTAO_PDF;
+                btnPdf.type = 'button';
+                btnPdf.textContent = TEXTO_PDF_PADRAO;
+                btnPdf.style.cssText = 'position:fixed;bottom:20px;right:185px;z-index:999999;' +
+                    'padding:10px 18px;border:none;border-radius:8px;background:#2e7d32;color:#fff;' +
+                    'font:bold 14px Arial,sans-serif;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);';
+                btnPdf.addEventListener('click', function () { aoClicarUnirPdfs(btnPdf); });
+                document.body.appendChild(btnPdf);
+            }
             return;
         }
 
-        instalarHooksDownload();
+        if (existente) existente.remove();
+        if (existentePdf) existentePdf.remove();
 
-        if (!existente) {
-            var btn = document.createElement('button');
-            btn.id = ID_BOTAO;
-            btn.type = 'button';
-            btn.textContent = TEXTO_PADRAO;
-            btn.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;' +
-                'padding:10px 18px;border:none;border-radius:8px;background:#1976d2;color:#fff;' +
-                'font:bold 14px Arial,sans-serif;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);';
-            btn.addEventListener('click', function () { aoClicar(btn); });
-            document.body.appendChild(btn);
+        if (naRotaOrdemJudicial() || loteOrdemEmAndamento) {
+            instalarHooksDownload();
+            if (!existenteOrdem) {
+                var btnOrdem = document.createElement('button');
+                btnOrdem.id = ID_BOTAO_ORDEM;
+                btnOrdem.type = 'button';
+                btnOrdem.textContent = TEXTO_ORDEM_PADRAO;
+                btnOrdem.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;' +
+                    'padding:10px 18px;border:none;border-radius:8px;background:#2e7d32;color:#fff;' +
+                    'font:bold 14px Arial,sans-serif;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);';
+                btnOrdem.addEventListener('click', function () { aoClicarBaixarProtocolosOrdem(btnOrdem); });
+                document.body.appendChild(btnOrdem);
+            }
+            return;
         }
 
-        if (!existentePdf) {
-            var btnPdf = document.createElement('button');
-            btnPdf.id = ID_BOTAO_PDF;
-            btnPdf.type = 'button';
-            btnPdf.textContent = TEXTO_PDF_PADRAO;
-            btnPdf.style.cssText = 'position:fixed;bottom:20px;right:185px;z-index:999999;' +
-                'padding:10px 18px;border:none;border-radius:8px;background:#2e7d32;color:#fff;' +
-                'font:bold 14px Arial,sans-serif;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);';
-            btnPdf.addEventListener('click', function () { aoClicarUnirPdfs(btnPdf); });
-            document.body.appendChild(btnPdf);
-        }
+        if (existenteOrdem) existenteOrdem.remove();
     }
 
     window.SisbProtocolos = {
@@ -527,6 +765,10 @@
         unirPdfs: function () {
             var btnPdf = document.getElementById(ID_BOTAO_PDF);
             return aoClicarUnirPdfs(btnPdf || { textContent: '', disabled: false });
+        },
+        baixarProtocolosOrdem: function () {
+            var btnOrdem = document.getElementById(ID_BOTAO_ORDEM);
+            return aoClicarBaixarProtocolosOrdem(btnOrdem || { textContent: '', disabled: false });
         }
     };
 })();

@@ -18,7 +18,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-from Fix.sessao import obter_totp_pje, obter_totp_sisbajud
+from Fix.sessao import obter_credencial, obter_totp_pje, obter_totp_sisbajud
 
 DEFAULT_HOST = '127.0.0.1'
 DEFAULT_PORT = 8765
@@ -65,6 +65,21 @@ class OtpBridgeHandler(BaseHTTPRequestHandler):
                 200,
                 {'ok': True, 'tipo': tipo, 'codigo': codigo, 'restante': restante, 'origem': 'keyring'},
             )
+            return
+
+        if rota == '/cred/sisb-senha':
+            senha = obter_credencial(
+                'SISB_SENHA',
+                servicos=('pjeplus', 'pje', 'sisbajud', 'SISB'),
+                aliases=('PJE_SENHA', 'PJE_PASSWORD', 'BP_PASS', 'SENHA', 'PASSWORD'),
+            )
+            if not senha:
+                self._responder_json(
+                    404,
+                    {'ok': False, 'erro': 'Credencial de senha SISBAJUD/PJe não encontrada no keyring'},
+                )
+                return
+            self._responder_json(200, {'ok': True, 'senha': senha, 'origem': 'keyring'})
             return
 
         self._responder_json(404, {'ok': False, 'erro': 'Rota não encontrada'})

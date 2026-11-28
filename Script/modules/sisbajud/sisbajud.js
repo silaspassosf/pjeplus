@@ -54,6 +54,11 @@
             window.SisbExtrair.injetarBotao();
         }
 
+        // 2c. Ordem judicial /desdobrar ou /detalhar — botão "Desbloquear" (centro inferior)
+        if (window.SisbDesbloquear && typeof window.SisbDesbloquear.injetarBotao === 'function') {
+            window.SisbDesbloquear.injetarBotao();
+        }
+
         // 3. Tela de Ordens (Transferir / Desbloquear / Reiteração)
         var isTeimosinhaLista = document.querySelector('SISBAJUD-DETALHES-TEIMOSINHA');
         if (isTeimosinhaLista) {

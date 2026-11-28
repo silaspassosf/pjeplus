@@ -12,8 +12,9 @@
 //   2. Reúne até 2 minutas desse mesmo processo na tabela
 //   3. Abre em novas abas (sem sair de /minuta), primeiro a mais abaixo e depois a de cima
 //      (URL: <origin>/minuta/<idMinuta>/alterar)
-//   4. Abre também a aba do processo no PJe em /documento/anexar
-//      (via Atalhos.abrir_processo_direto(numero, { rota: 'anexar' }))
+//   4. Antes de abrir, apaga as GIGS vencidas com "teimosinha" do processo
+//      e abre a aba no PJe em /documento/anexar
+//      (Atalhos.abrir_processo_direto(numero, { rota: 'anexar', limparGigsTeimosinha: true }))
 //   5. Colore/destaca as linhas já abertas na tabela
 // Injetado pelo orquestrador (sisbajud.js → injetarUI) e também disparado ao Consultar.
 // ═══════════════════════════════════════════════════════════════════
@@ -332,7 +333,7 @@
             console.log('[SisbAbrirMinutas] abrir_processo_direto indisponível ou número vazio:', numero);
             return;
         }
-        Promise.resolve(fn(numero, { focar: false, rota: 'anexar' })).then(
+        Promise.resolve(fn(numero, { focar: false, rota: 'anexar', limparGigsTeimosinha: true })).then(
             function (r) { console.log('[SisbAbrirMinutas] PJe:', numero, r); },
             function (e) { console.warn('[SisbAbrirMinutas] falha ao abrir PJe:', numero, e); }
         );

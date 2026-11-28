@@ -477,9 +477,6 @@
         observarCliqueConsultar();
     }
 
-    console.log('[SisbAbrirMinutas] módulo carregado em', location.host + location.pathname,
-        '| api?', typeof window.SisbAbrirMinutas);
-
     window.SisbAbrirMinutas = {
         injetarBotao: injetarBotao,
         resetarAbertos: function () {
@@ -488,4 +485,7 @@
             ultimoLoteIds.clear();
         },
     };
+
+    console.log('[SisbAbrirMinutas] módulo carregado em', location.host + location.pathname,
+        '| api?', typeof window.SisbAbrirMinutas);
 })();

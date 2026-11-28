@@ -1,14 +1,15 @@
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════════
-// SISBAJUD — protocolos.js (botão "Copiar protocolo")
+// SISBAJUD — protocolos.js (botões "Copiar protocolo" e "Unir PDFs")
 // Onde: https://sisbajud.pdpj.jus.br/minuta (e também o host cnj)
-// O que faz, ao clicar:
-//   1. Lê a dialog "Relação de protocolos" (h1.h1-title + .span-protocolo)
-//   2. Copia os protocolos — só os números, separados por ';' — para a
-//      área de transferência
-//   3. O botão vira "Copiado!" por 2s
-//   4. Clica em "Voltar" para fechar a dialog
+// O que faz:
+//   - "Copiar protocolo": lê a dialog "Relação de protocolos", copia os
+//     números separados por ';', fecha a dialog e reaplica o filtro.
+//   - "Unir PDFs": clica em cada ícone PDF (.mat-icon-exportar) da dialog,
+//     intercepta os blobs gerados no cliente sem baixar avulsos e gera um
+//     único PDF consolidado via PDFLib.
+//   - Clique manual em um ícone PDF: renomeia o arquivo com o protocolo.
 // Injetado pelo orquestrador (sisbajud.js → injetarUI), sem timer próprio.
 // ═══════════════════════════════════════════════════════════════════
 
@@ -16,7 +17,10 @@
     if (window.SisbProtocolos) return;
 
     var ID_BOTAO = 'pjetools-sisb-protocolos';
+    var ID_BOTAO_PDF = 'pjetools-sisb-protocolos-pdf';
     var TEXTO_PADRAO = 'Copiar protocolo';
+    var TEXTO_PDF_PADRAO = 'Unir PDFs';
+    var PAGE_WIN = (typeof unsafeWindow !== 'undefined' && unsafeWindow) || window;
 
     function hostSisbajud() {
         var h = window.location.hostname || '';
@@ -197,10 +201,10 @@
         }
     }
 
-    // ── Ação do botão ────────────────────────────────────────────────
-    function avisar(btn, texto, ms) {
+    // ── Ação do botão "Copiar protocolo" ─────────────────────────────
+    function avisar(btn, texto, ms, padrao) {
         btn.textContent = texto;
-        setTimeout(function () { btn.textContent = TEXTO_PADRAO; }, ms || 2000);
+        setTimeout(function () { btn.textContent = padrao || TEXTO_PADRAO; }, ms || 2000);
     }
 
     function aoClicar(btn) {
@@ -221,26 +225,297 @@
         });
     }
 
-    // ── Injeção do botão (inferior direito) ──────────────────────────
+    // ── Interceptação de PDFs client-side (lote + renomeação manual) ──
+    var hooksInstalados = false;
+    var modoCaptura = false;
+    var resolverCaptura = null;
+    var ultimoProtocoloManual = '';
+    var tsProtocoloManual = 0;
+    var mapaBlobs = new Map();
+    var origCreateObjectURL = null;
+    var origAnchorClick = null;
+    var origWindowOpen = null;
+
+    function obterPdfLib() {
+        if (typeof PDFLib !== 'undefined' && PDFLib && PDFLib.PDFDocument) return PDFLib;
+        if (window.PDFLib && window.PDFLib.PDFDocument) return window.PDFLib;
+        if (PAGE_WIN && PAGE_WIN.PDFLib && PAGE_WIN.PDFLib.PDFDocument) return PAGE_WIN.PDFLib;
+        return null;
+    }
+
+    function entregarCaptura(origem) {
+        if (!modoCaptura || !resolverCaptura) return false;
+        var fn = resolverCaptura;
+        resolverCaptura = null;
+        fn(origem);
+        return true;
+    }
+
+    function instalarHooksDownload() {
+        if (hooksInstalados) return;
+        hooksInstalados = true;
+
+        try {
+            if (PAGE_WIN.URL && typeof PAGE_WIN.URL.createObjectURL === 'function') {
+                origCreateObjectURL = PAGE_WIN.URL.createObjectURL.bind(PAGE_WIN.URL);
+                PAGE_WIN.URL.createObjectURL = function (obj) {
+                    var url = origCreateObjectURL(obj);
+                    try {
+                        if (obj && typeof obj.arrayBuffer === 'function') {
+                            mapaBlobs.set(url, obj);
+                            if (mapaBlobs.size > 60) {
+                                var primeira = mapaBlobs.keys().next().value;
+                                mapaBlobs.delete(primeira);
+                            }
+                        }
+                    } catch (e) { }
+                    return url;
+                };
+            }
+        } catch (e) { console.warn('[SisbProtocolos] hook createObjectURL falhou:', e); }
+
+        try {
+            var anchorProto = PAGE_WIN.HTMLAnchorElement && PAGE_WIN.HTMLAnchorElement.prototype;
+            if (anchorProto && typeof anchorProto.click === 'function') {
+                origAnchorClick = anchorProto.click;
+                anchorProto.click = function () {
+                    try {
+                        var href = this.getAttribute('href') || this.href || '';
+                        var ehBlobOuPdf = href.indexOf('blob:') === 0
+                            || href.indexOf('data:application/pdf') === 0
+                            || (this.hasAttribute('download') && /\.pdf$/i.test(this.getAttribute('download') || ''));
+
+                        if (ehBlobOuPdf && !this.dataset.pjetoolsMerged) {
+                            if (modoCaptura && resolverCaptura) {
+                                var blob = mapaBlobs.get(href) || null;
+                                entregarCaptura({ blob: blob, href: href });
+                                return;
+                            }
+                            // Clique manual em um recibo na dialog: aplica nome real do protocolo
+                            if (ultimoProtocoloManual && (Date.now() - tsProtocoloManual) < 10000) {
+                                this.setAttribute('download', 'recibo_' + ultimoProtocoloManual + '.pdf');
+                            }
+                        }
+                    } catch (e) { }
+                    return origAnchorClick.apply(this, arguments);
+                };
+            }
+        } catch (e) { console.warn('[SisbProtocolos] hook anchor.click falhou:', e); }
+
+        try {
+            if (typeof PAGE_WIN.open === 'function') {
+                origWindowOpen = PAGE_WIN.open.bind(PAGE_WIN);
+                PAGE_WIN.open = function (url) {
+                    try {
+                        var u = String(url || '');
+                        if (modoCaptura && resolverCaptura && (u.indexOf('blob:') === 0 || u.indexOf('data:application/pdf') === 0)) {
+                            var blob = mapaBlobs.get(u) || null;
+                            entregarCaptura({ blob: blob, href: u });
+                            return null;
+                        }
+                    } catch (e) { }
+                    return origWindowOpen.apply(PAGE_WIN, arguments);
+                };
+            }
+        } catch (e) { console.warn('[SisbProtocolos] hook window.open falhou:', e); }
+
+        // Registra o protocolo quando o usuário clica manualmente no ícone PDF
+        document.addEventListener('click', function (ev) {
+            if (modoCaptura) return;
+            try {
+                var alvo = ev.target && ev.target.closest && ev.target.closest('.div-relacao-protocolos');
+                if (!alvo) return;
+                var sp = alvo.querySelector('.span-protocolo');
+                var num = sp ? (sp.textContent || '').replace(/\D+/g, '') : '';
+                if (num) {
+                    ultimoProtocoloManual = num;
+                    tsProtocoloManual = Date.now();
+                }
+            } catch (e) { }
+        }, true);
+    }
+
+    async function resolverBytes(captura) {
+        if (!captura) return null;
+        if (captura.blob && typeof captura.blob.arrayBuffer === 'function') {
+            return await captura.blob.arrayBuffer();
+        }
+        if (captura.href) {
+            var r = await PAGE_WIN.fetch(captura.href);
+            return await r.arrayBuffer();
+        }
+        return null;
+    }
+
+    function aguardarProximoPdf(timeoutMs) {
+        return new Promise(function (resolve) {
+            var resolvido = false;
+            var timer = setTimeout(function () {
+                if (resolvido) return;
+                resolvido = true;
+                resolverCaptura = null;
+                resolve(null);
+            }, timeoutMs || 8000);
+
+            resolverCaptura = function (dados) {
+                if (resolvido) return;
+                resolvido = true;
+                clearTimeout(timer);
+                resolve(dados);
+            };
+        });
+    }
+
+    function baixarPdfUnificado(bytes, nomeArquivo) {
+        var blob = new Blob([bytes], { type: 'application/pdf' });
+        var url = (origCreateObjectURL || URL.createObjectURL)(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = nomeArquivo;
+        a.dataset.pjetoolsMerged = '1';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        if (origAnchorClick) origAnchorClick.call(a);
+        else a.click();
+        setTimeout(function () {
+            a.remove();
+            try { URL.revokeObjectURL(url); } catch (e) { }
+        }, 2000);
+    }
+
+    function listarItensPdf(dlg) {
+        var linhas = dlg.querySelectorAll('.div-relacao-protocolos');
+        var itens = [];
+        for (var i = 0; i < linhas.length; i++) {
+            var sp = linhas[i].querySelector('.span-protocolo');
+            var icone = linhas[i].querySelector('mat-icon.mat-icon-exportar, mat-icon.fa-file-pdf, .fa-file-pdf');
+            var num = sp ? (sp.textContent || '').replace(/\D+/g, '') : '';
+            if (icone) itens.push({ protocolo: num || String(i + 1), icone: icone });
+        }
+        return itens;
+    }
+
+    var unindoEmAndamento = false;
+
+    async function aoClicarUnirPdfs(btn) {
+        if (unindoEmAndamento) return;
+
+        var dlg = acharDialogProtocolos();
+        if (!dlg) return avisar(btn, 'Dialog não encontrada', 2000, TEXTO_PDF_PADRAO);
+
+        var lib = obterPdfLib();
+        if (!lib) return avisar(btn, 'PDFLib indisponível', 2500, TEXTO_PDF_PADRAO);
+
+        var itens = listarItensPdf(dlg);
+        if (!itens.length) return avisar(btn, 'Nenhum PDF na dialog', 2000, TEXTO_PDF_PADRAO);
+
+        instalarHooksDownload();
+        unindoEmAndamento = true;
+        modoCaptura = true;
+        btn.disabled = true;
+
+        var capturados = [];
+        var falhas = 0;
+
+        try {
+            for (var i = 0; i < itens.length; i++) {
+                var item = itens[i];
+                btn.textContent = 'PDFs ' + (i + 1) + '/' + itens.length + '...';
+                var promessa = aguardarProximoPdf(8000);
+                item.icone.click();
+                var cap = await promessa;
+                var bytes = await resolverBytes(cap);
+                if (bytes && bytes.byteLength > 100) {
+                    capturados.push({ protocolo: item.protocolo, bytes: bytes });
+                } else {
+                    falhas++;
+                    console.warn('[SisbProtocolos] PDF não capturado para protocolo:', item.protocolo);
+                }
+                await esperar(120);
+            }
+
+            if (!capturados.length) {
+                avisar(btn, 'Nenhum PDF capturado', 2500, TEXTO_PDF_PADRAO);
+                return;
+            }
+
+            btn.textContent = 'Unindo ' + capturados.length + ' PDFs...';
+            var pdfFinal = await lib.PDFDocument.create();
+            for (var j = 0; j < capturados.length; j++) {
+                try {
+                    var src = await lib.PDFDocument.load(capturados[j].bytes, { ignoreEncryption: true });
+                    var paginas = await pdfFinal.copyPages(src, src.getPageIndices());
+                    for (var p = 0; p < paginas.length; p++) {
+                        pdfFinal.addPage(paginas[p]);
+                    }
+                } catch (eLoad) {
+                    falhas++;
+                    console.warn('[SisbProtocolos] Falha ao anexar PDF', capturados[j].protocolo, eLoad);
+                }
+            }
+
+            var bytesFinais = await pdfFinal.save();
+            var primeiro = capturados[0].protocolo;
+            var ultimo = capturados[capturados.length - 1].protocolo;
+            var nome = capturados.length === 1
+                ? ('recibo_' + primeiro + '.pdf')
+                : ('recibos_' + primeiro + '_a_' + ultimo + '_' + capturados.length + 'x.pdf');
+
+            baixarPdfUnificado(bytesFinais, nome);
+            avisar(
+                btn,
+                falhas ? ('Unido (' + capturados.length + ', ' + falhas + ' erro)') : ('PDF único (' + capturados.length + ')!'),
+                3000,
+                TEXTO_PDF_PADRAO
+            );
+        } catch (e) {
+            console.error('[SisbProtocolos] Erro ao unir PDFs:', e);
+            avisar(btn, 'Erro ao unir PDFs', 2500, TEXTO_PDF_PADRAO);
+        } finally {
+            modoCaptura = false;
+            resolverCaptura = null;
+            unindoEmAndamento = false;
+            btn.disabled = false;
+        }
+    }
+
+    // ── Injeção dos botões (inferior direito) ────────────────────────
     function injetarBotao() {
         if (!hostSisbajud() || !document.body) return;
 
         var existente = document.getElementById(ID_BOTAO);
+        var existentePdf = document.getElementById(ID_BOTAO_PDF);
         if (!naRotaMinuta()) {
             if (existente) existente.remove();
+            if (existentePdf) existentePdf.remove();
             return;
         }
-        if (existente) return;
 
-        var btn = document.createElement('button');
-        btn.id = ID_BOTAO;
-        btn.type = 'button';
-        btn.textContent = TEXTO_PADRAO;
-        btn.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;' +
-            'padding:10px 18px;border:none;border-radius:8px;background:#1976d2;color:#fff;' +
-            'font:bold 14px Arial,sans-serif;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);';
-        btn.addEventListener('click', function () { aoClicar(btn); });
-        document.body.appendChild(btn);
+        instalarHooksDownload();
+
+        if (!existente) {
+            var btn = document.createElement('button');
+            btn.id = ID_BOTAO;
+            btn.type = 'button';
+            btn.textContent = TEXTO_PADRAO;
+            btn.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;' +
+                'padding:10px 18px;border:none;border-radius:8px;background:#1976d2;color:#fff;' +
+                'font:bold 14px Arial,sans-serif;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);';
+            btn.addEventListener('click', function () { aoClicar(btn); });
+            document.body.appendChild(btn);
+        }
+
+        if (!existentePdf) {
+            var btnPdf = document.createElement('button');
+            btnPdf.id = ID_BOTAO_PDF;
+            btnPdf.type = 'button';
+            btnPdf.textContent = TEXTO_PDF_PADRAO;
+            btnPdf.style.cssText = 'position:fixed;bottom:20px;right:185px;z-index:999999;' +
+                'padding:10px 18px;border:none;border-radius:8px;background:#2e7d32;color:#fff;' +
+                'font:bold 14px Arial,sans-serif;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);';
+            btnPdf.addEventListener('click', function () { aoClicarUnirPdfs(btnPdf); });
+            document.body.appendChild(btnPdf);
+        }
     }
 
     window.SisbProtocolos = {
@@ -248,6 +523,10 @@
         lerProtocolos: function () {
             var dlg = acharDialogProtocolos();
             return dlg ? lerProtocolos(dlg) : [];
+        },
+        unirPdfs: function () {
+            var btnPdf = document.getElementById(ID_BOTAO_PDF);
+            return aoClicarUnirPdfs(btnPdf || { textContent: '', disabled: false });
         }
     };
 })();
